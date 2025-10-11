@@ -1,3 +1,5 @@
+package messages
+
 type AlgorithmComplete struct {
 	FinalModularity float64
 	Iterations      int

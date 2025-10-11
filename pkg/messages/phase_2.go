@@ -1,3 +1,5 @@
+package messages
+
 import "github.com/distributed-louvain/pkg/actor"
 
 // Phase 2: Aggregation Messages
@@ -15,9 +17,9 @@ type EdgeAggregate struct {
 func (m *EdgeAggregate) Type() string { return "EdgeAggregate" }
 
 type AggregationComplete struct {
-	AggregatorID int
-	SuperEdges   []SuperEdge
-	Sender       actor.PID
+	ActorID    string
+	SuperEdges []SuperEdge
+	Sender     actor.PID
 }
 func (m *AggregationComplete) Type() string { return "AggregationComplete" }
 
