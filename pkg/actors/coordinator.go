@@ -5,26 +5,30 @@ import (
 	"log"
 
 	"github.com/distributed-louvain/pkg/actor"
-	"github.com/distributed-louvain/pkg/messages"
 	"github.com/distributed-louvain/pkg/crdt"
+	"github.com/distributed-louvain/pkg/graph"
+	"github.com/distributed-louvain/pkg/messages"
 )
 
 type CoordinatorActor struct {
 	*actor.BaseActor
 	currentPhase    int
 	iteration       int
+	maxIterations   int
 	totalModularity float64
 	prevModularity  float64
 	completedActors map[string]bool
 	nodeset         *crdt.NodeSet
 }
 
-func NewCoordinatorActor(pid actor.PID, system *actor.ActorSystem) *CoordinatorActor {
+func NewCoordinatorActor(pid actor.PID, system *actor.ActorSystem, maxIterations int) *CoordinatorActor {
 	return &CoordinatorActor{
 		BaseActor:       actor.NewBaseActor(pid, system, 1000),
 		completedActors: make(map[string]bool),
 		currentPhase:    0,
 		nodeset:         crdt.NewNodeSet(),
+		iteration:       0,
+		maxIterations:   maxIterations,
 	}
 }
 
@@ -57,8 +61,10 @@ func (c *CoordinatorActor) run() {
 
 func (c *CoordinatorActor) Receive(ctx context.Context, msg actor.Message) {
 	switch m := msg.(type) {
-	case *messages.Phase1Complete:
-		c.handlePhase1Complete(m)
+	case *messages.InitialPartitionCreationComplete:
+		c.handleInitialPartitionCreationComplete(m)
+	case *messages.LocalOptimizationComplete:
+		c.handleLocalOptimizationComplete(m)
 	case *messages.AggregationComplete:
 		c.handleAggregationComplete(m)
 	case *messages.RedistributionComplete:
@@ -70,9 +76,47 @@ func (c *CoordinatorActor) Receive(ctx context.Context, msg actor.Message) {
 	}
 }
 
-func (c *CoordinatorActor) StartAlgorithm() {
-	log.Printf("[Coordinator] Starting Louvain algorithm - Iteration %d", c.iteration)
-	c.startPhase1()
+func (c *CoordinatorActor) StartAlgorithm(edges []graph.Edge, totalGraphWeight int) {
+	log.Printf("[Coordinator] Starting Louvain algorithm")
+
+	partitionPIDs := c.System.GetActors(actor.PartitionType)
+	numPartitions := len(partitionPIDs)
+
+	if numPartitions == 0 {
+		log.Printf("[Coordinator] No partition actors available")
+		return
+	}
+
+	partitionEdges := make([][]graph.Edge, numPartitions)
+	for i := range partitionEdges {
+		partitionEdges[i] = make([]graph.Edge, 0)
+	}
+
+	for _, edge := range edges {
+		partitionU := edge.U % numPartitions
+		partitionEdges[partitionU] = append(partitionEdges[partitionU], edge)
+
+		partitionV := edge.V % numPartitions
+		reversedEdge := graph.NewEdge(edge.V, edge.U, edge.W)
+		partitionEdges[partitionV] = append(partitionEdges[partitionV], reversedEdge)
+	}
+
+	for i, pid := range partitionPIDs {
+		log.Printf("[Coordinator] Sending %d edges to partition %s", len(partitionEdges[i]), pid)
+		c.Send(pid, &messages.InitialPartitionCreation{
+			Edges: partitionEdges[i],
+			TotalGraphWeight: totalGraphWeight,
+		})
+	}
+}
+
+func (c *CoordinatorActor) handleInitialPartitionCreationComplete(msg *messages.InitialPartitionCreationComplete) {
+	c.completedActors[msg.Sender.String()] = true
+
+	if len(c.completedActors) == len(c.System.GetActors(actor.PartitionType)) {
+		log.Printf("[Coordinator] Initial partition creation complete")
+		c.startPhase1()
+	}
 }
 
 func (c *CoordinatorActor) startPhase1() {
@@ -82,30 +126,33 @@ func (c *CoordinatorActor) startPhase1() {
 
 	log.Printf("[Coordinator] Starting Phase 1: Local Optimization")
 
-	// Broadcast to all partition actors
 	for _, pid := range c.System.GetActors(actor.PartitionType) {
 		c.Send(pid, &messages.StartPhase1{})
 	}
 }
 
-func (c *CoordinatorActor) handlePhase1Complete(msg *messages.Phase1Complete) {
+func (c *CoordinatorActor) handleLocalOptimizationComplete(msg *messages.LocalOptimizationComplete) {
 	c.completedActors[msg.Sender.String()] = true
-	c.totalModularity += msg.ModularityGain
+	c.nodeset.Merge(msg.NodeSet)
 
-	log.Printf("[Coordinator] Phase 1 complete from %s (gain: %.6f)", msg.Sender, msg.ModularityGain)
+	log.Printf("[Coordinator] Local optimization complete from %s", msg.Sender)
 
-	// Check if all partition actors have completed
 	if len(c.completedActors) == len(c.System.GetActors(actor.PartitionType)) {
 		c.checkConvergence()
 	}
 }
 
 func (c *CoordinatorActor) checkConvergence() {
+	transitions := c.nodeset.GetAll()
+	for _, transition := range transitions {
+		c.totalModularity += transition.ModularityDelta
+	}
+
 	improvement := c.totalModularity - c.prevModularity
 	log.Printf("[Coordinator] Iteration %d complete. Modularity: %.6f (improvement: %.6f)",
 		c.iteration, c.totalModularity, improvement)
 
-	if improvement < 1e-6 {
+	if improvement < 1e-6 || c.iteration >= c.maxIterations {
 		log.Printf("[Coordinator] Algorithm converged!")
 		c.completeAlgorithm()
 		return
@@ -121,8 +168,11 @@ func (c *CoordinatorActor) startPhase2() {
 
 	log.Printf("[Coordinator] Starting Phase 2: Aggregation")
 
-	// Tell partition actors to aggregate
 	for _, pid := range c.System.GetActors(actor.PartitionType) {
+		c.Send(pid, &messages.StartPhase2{})
+	}
+
+	for _, pid := range c.System.GetActors(actor.AggregatorType) {
 		c.Send(pid, &messages.StartPhase2{})
 	}
 }
@@ -132,7 +182,6 @@ func (c *CoordinatorActor) handleAggregationComplete(msg *messages.AggregationCo
 
 	log.Printf("[Coordinator] Aggregation complete from %s", msg.Sender)
 
-	// Check if all aggregators have completed
 	if len(c.completedActors) == len(c.System.GetActors(actor.AggregatorType)) {
 		c.startRedistribution()
 	}
@@ -141,10 +190,7 @@ func (c *CoordinatorActor) handleAggregationComplete(msg *messages.AggregationCo
 func (c *CoordinatorActor) startRedistribution() {
 	log.Printf("[Coordinator] Starting redistribution")
 
-	// TODO: Collect super-edges from aggregators and redistribute to partition actors
-	// For now, just start next iteration
 	c.iteration++
-	c.startPhase1()
 }
 
 func (c *CoordinatorActor) handleRedistributionComplete(msg *messages.RedistributionComplete) {

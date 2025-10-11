@@ -39,6 +39,14 @@ func (n *NodeSet) Get(nodeID int) (*NodeTransition, bool) {
 	return transition, exists
 }
 
+func (n *NodeSet) GetAll() []*NodeTransition {
+	transitions := make([]*NodeTransition, 0, len(n.transitions))
+	for _, transition := range n.transitions {
+		transitions = append(transitions, transition)
+	}
+	return transitions
+}
+
 func (n *NodeSet) Merge(other *NodeSet) {
 	for nodeID, transition := range other.transitions {
 		existing, exists := n.transitions[nodeID]

@@ -89,6 +89,18 @@ func (s *ActorSystem) remoteDeliver(to PID, msg Message) error {
 	return s.provider.Send(to, msg)
 }
 
+func (s *ActorSystem) Broadcast(from PID, actorType ActorType, msg Message) {
+	actors := s.GetActors(actorType)
+
+	for _, actorPID := range actors {
+		if actorPID.Equal(from) {
+			continue
+		}
+
+		s.Send(actorPID, msg)
+	}
+}
+
 func (s *ActorSystem) Shutdown() {
 	s.cancel()
 

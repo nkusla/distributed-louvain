@@ -26,6 +26,10 @@ func (p PID) IsZero() bool {
 	return p.MachineID == "" && p.ActorID == ""
 }
 
+func (p PID) Equal(other PID) bool {
+	return p.MachineID == other.MachineID && p.ActorID == other.ActorID
+}
+
 func ParsePID(s string) (PID, error) {
 	var machineId, actorID string
 	_, err := fmt.Sscanf(s, "%s/%s", &machineId, &actorID)
