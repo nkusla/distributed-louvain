@@ -168,13 +168,9 @@ func (c *CoordinatorActor) startPhase2() {
 
 	log.Printf("[Coordinator] Starting Phase 2: Aggregation")
 
-	for _, pid := range c.System.GetActors(actor.PartitionType) {
-		c.Send(pid, &messages.StartPhase2{})
-	}
+	c.System.Broadcast(c.PID(), actor.PartitionType, &messages.StartPhase2{})
 
-	for _, pid := range c.System.GetActors(actor.AggregatorType) {
-		c.Send(pid, &messages.StartPhase2{})
-	}
+	c.System.Broadcast(c.PID(), actor.AggregatorType, &messages.StartPhase2{})
 }
 
 func (c *CoordinatorActor) handleAggregationComplete(msg *messages.AggregationComplete) {
@@ -216,12 +212,8 @@ func (c *CoordinatorActor) completeAlgorithm() {
 		Iterations:      c.iteration,
 	}
 
-	for _, pid := range c.System.GetActors(actor.PartitionType) {
-		c.Send(pid, msg)
-	}
-	for _, pid := range c.System.GetActors(actor.AggregatorType) {
-		c.Send(pid, msg)
-	}
+	c.System.Broadcast(c.PID(), actor.PartitionType, msg)
+	c.System.Broadcast(c.PID(), actor.AggregatorType, msg)
 
 	log.Println("\n=== ALGORITHM COMPLETE ===")
 	log.Printf("Final Modularity: %.6f\n", c.totalModularity)

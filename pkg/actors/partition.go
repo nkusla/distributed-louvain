@@ -89,7 +89,6 @@ func (p *PartitionActor) handleInitialPartitionCreation(msg *messages.InitialPar
 
 func (p *PartitionActor) handleStartPhase1() {
 	p.currentPhase = 1
-	p.totalNodePairs = len(p.partition.Adj)
 	p.processedNodePairs = 0
 	p.totalNodePairs = 0
 
