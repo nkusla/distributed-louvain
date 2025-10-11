@@ -11,28 +11,38 @@ type Transport interface {
 	Stop() error
 }
 
+type Provider interface {
+	GetAggregators() []PID
+	GetPartitions() []PID
+	FindActor(actorID string) (PID, error)
+	Start(ctx context.Context) error
+	Stop() error
+}
+
 type ActorSystem struct {
-	nodeID    string
+	machineId    string
 	actors    map[string]Actor
 	mu        sync.RWMutex
 	transport Transport
+	provider Provider
 	ctx       context.Context
 	cancel    context.CancelFunc
 }
 
-func NewActorSystem(nodeID string, transport Transport) *ActorSystem {
+func NewActorSystem(machineId string, transport Transport, provider Provider) *ActorSystem {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ActorSystem{
-		nodeID:    nodeID,
+		machineId:    machineId,
 		actors:    make(map[string]Actor),
 		transport: transport,
+		provider: provider,
 		ctx:       ctx,
 		cancel:    cancel,
 	}
 }
 
-func (s *ActorSystem) NodeID() string {
-	return s.nodeID
+func (s *ActorSystem) MachineID() string {
+	return s.machineId
 }
 
 func (s *ActorSystem) Start() error {
@@ -62,7 +72,7 @@ func (s *ActorSystem) Unregister(actorID string) {
 }
 
 func (s *ActorSystem) Send(to PID, msg Message) error {
-	if to.IsLocal(s.nodeID) {
+	if to.IsLocal(s.machineId) {
 		return s.localDeliver(to, msg)
 	}
 	return s.remoteDeliver(to, msg)
@@ -130,4 +140,25 @@ func (s *ActorSystem) Shutdown() {
 	if s.transport != nil {
 		s.transport.Stop()
 	}
+}
+
+func (s *ActorSystem) GetAggregators() []PID {
+	if s.provider != nil {
+		return s.provider.GetAggregators()
+	}
+	return []PID{}
+}
+
+func (s *ActorSystem) GetPartitions() []PID {
+	if s.provider != nil {
+		return s.provider.GetPartitions()
+	}
+	return []PID{}
+}
+
+func (s *ActorSystem) FindActor(actorID string) (PID, error) {
+	if s.provider != nil {
+		return s.provider.FindActor(actorID)
+	}
+	return PID{}, fmt.Errorf("no cluster provider available")
 }

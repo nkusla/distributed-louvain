@@ -3,34 +3,34 @@ package actor
 import "fmt"
 
 type PID struct {
-	NodeID  string
+	MachineID  string
 	ActorID string
 }
 
-func NewPID(nodeID string, actorID string) PID {
+func NewPID(machineId string, actorID string) PID {
 	return PID{
-		NodeID:  nodeID,
+		MachineID:  machineId,
 		ActorID: actorID,
 	}
 }
 
 func (p PID) String() string {
-	return fmt.Sprintf("%s/%s", p.NodeID, p.ActorID)
+	return fmt.Sprintf("%s/%s", p.MachineID, p.ActorID)
 }
 
-func (p PID) IsLocal(nodeID string) bool {
-	return p.NodeID == nodeID
+func (p PID) IsLocal(machineId string) bool {
+	return p.MachineID == machineId
 }
 
 func (p PID) IsZero() bool {
-	return p.NodeID == "" && p.ActorID == ""
+	return p.MachineID == "" && p.ActorID == ""
 }
 
 func ParsePID(s string) (PID, error) {
-	var nodeID, actorID string
-	_, err := fmt.Sscanf(s, "%s/%s", &nodeID, &actorID)
+	var machineId, actorID string
+	_, err := fmt.Sscanf(s, "%s/%s", &machineId, &actorID)
 	if err != nil {
 		return PID{}, fmt.Errorf("invalid PID format: %s", s)
 	}
-	return PID{NodeID: nodeID, ActorID: actorID}, nil
+	return PID{MachineID: machineId, ActorID: actorID}, nil
 }
