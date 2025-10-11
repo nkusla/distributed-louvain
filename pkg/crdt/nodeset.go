@@ -6,6 +6,7 @@ type NodeTransition struct {
 	ModularityDelta float64
 }
 
+// NodeSet is modified Max-Set CRDT for conflict resolution
 type NodeSet struct {
 	transitions map[int]*NodeTransition // nodeID -> best transition with highest modularity delta
 }

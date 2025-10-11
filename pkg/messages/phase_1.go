@@ -9,7 +9,7 @@ func (m *StartPhase1) Type() string { return "StartPhase1" }
 
 type DegreeRequest struct {
 	NodeID  int
-	ReplyTo actor.PID
+	Sender actor.PID
 }
 func (m *DegreeRequest) Type() string { return "DegreeRequest" }
 
@@ -21,7 +21,7 @@ func (m *DegreeResponse) Type() string { return "DegreeResponse" }
 
 type CommunityRequest struct {
 	NodeID  int
-	ReplyTo actor.PID
+	Sender actor.PID
 }
 func (m *CommunityRequest) Type() string { return "CommunityRequest" }
 
@@ -41,7 +41,6 @@ type NodeTransition struct {
 func (m *NodeTransition) Type() string { return "NodeTransition" }
 
 type Phase1Complete struct {
-	PartitionID    int
 	ModularityGain float64
 	Sender         actor.PID
 }

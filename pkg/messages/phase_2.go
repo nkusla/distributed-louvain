@@ -11,13 +11,11 @@ type EdgeAggregate struct {
 	CommunityU int
 	CommunityV int
 	Weight     float64
-	PartitionID int
 	Sender     actor.PID
 }
 func (m *EdgeAggregate) Type() string { return "EdgeAggregate" }
 
 type AggregationComplete struct {
-	ActorID    string
 	SuperEdges []SuperEdge
 	Sender     actor.PID
 }
@@ -29,12 +27,16 @@ type StartRedistribution struct {
 func (m *StartRedistribution) Type() string { return "StartRedistribution" }
 
 type RedistributionComplete struct {
-	PartitionID int
 	NodesCount  int
 	EdgesCount  int
 	Sender      actor.PID
 }
 func (m *RedistributionComplete) Type() string { return "RedistributionComplete" }
+
+type Phase2Complete struct {
+	Sender actor.PID
+}
+func (m *Phase2Complete) Type() string { return "Phase2Complete" }
 
 // Helper types
 

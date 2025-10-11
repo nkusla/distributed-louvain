@@ -6,6 +6,7 @@ import (
 
 	"github.com/distributed-louvain/pkg/actor"
 	"github.com/distributed-louvain/pkg/messages"
+	"github.com/distributed-louvain/pkg/crdt"
 )
 
 type CoordinatorActor struct {
@@ -15,6 +16,7 @@ type CoordinatorActor struct {
 	totalModularity float64
 	prevModularity  float64
 	completedActors map[string]bool
+	nodeset         *crdt.NodeSet
 }
 
 func NewCoordinatorActor(pid actor.PID, system *actor.ActorSystem) *CoordinatorActor {
@@ -22,6 +24,7 @@ func NewCoordinatorActor(pid actor.PID, system *actor.ActorSystem) *CoordinatorA
 		BaseActor:       actor.NewBaseActor(pid, system, 1000),
 		completedActors: make(map[string]bool),
 		currentPhase:    0,
+		nodeset:         crdt.NewNodeSet(),
 	}
 }
 
@@ -60,6 +63,8 @@ func (c *CoordinatorActor) Receive(ctx context.Context, msg actor.Message) {
 		c.handleAggregationComplete(m)
 	case *messages.RedistributionComplete:
 		c.handleRedistributionComplete(m)
+	case *messages.Phase2Complete:
+		c.handlePhase2Complete(m)
 	default:
 		log.Printf("[Coordinator] Received unknown message type: %s", msg.Type())
 	}
@@ -73,11 +78,12 @@ func (c *CoordinatorActor) StartAlgorithm() {
 func (c *CoordinatorActor) startPhase1() {
 	c.currentPhase = 1
 	c.completedActors = make(map[string]bool)
+	c.nodeset.Clear()
 
 	log.Printf("[Coordinator] Starting Phase 1: Local Optimization")
 
 	// Broadcast to all partition actors
-	for _, pid := range c.System.GetPartitions() {
+	for _, pid := range c.System.GetActors(actor.PartitionType) {
 		c.Send(pid, &messages.StartPhase1{})
 	}
 }
@@ -89,7 +95,7 @@ func (c *CoordinatorActor) handlePhase1Complete(msg *messages.Phase1Complete) {
 	log.Printf("[Coordinator] Phase 1 complete from %s (gain: %.6f)", msg.Sender, msg.ModularityGain)
 
 	// Check if all partition actors have completed
-	if len(c.completedActors) == len(c.System.GetPartitions()) {
+	if len(c.completedActors) == len(c.System.GetActors(actor.PartitionType)) {
 		c.checkConvergence()
 	}
 }
@@ -116,7 +122,7 @@ func (c *CoordinatorActor) startPhase2() {
 	log.Printf("[Coordinator] Starting Phase 2: Aggregation")
 
 	// Tell partition actors to aggregate
-	for _, pid := range c.System.GetPartitions() {
+	for _, pid := range c.System.GetActors(actor.PartitionType) {
 		c.Send(pid, &messages.StartPhase2{})
 	}
 }
@@ -127,7 +133,7 @@ func (c *CoordinatorActor) handleAggregationComplete(msg *messages.AggregationCo
 	log.Printf("[Coordinator] Aggregation complete from %s", msg.Sender)
 
 	// Check if all aggregators have completed
-	if len(c.completedActors) == len(c.System.GetAggregators()) {
+	if len(c.completedActors) == len(c.System.GetActors(actor.AggregatorType)) {
 		c.startRedistribution()
 	}
 }
@@ -146,10 +152,16 @@ func (c *CoordinatorActor) handleRedistributionComplete(msg *messages.Redistribu
 
 	log.Printf("[Coordinator] Redistribution complete from %s", msg.Sender)
 
-	if len(c.completedActors) == len(c.System.GetPartitions()) {
+	if len(c.completedActors) == len(c.System.GetActors(actor.PartitionType)) {
 		c.iteration++
 		c.startPhase1()
 	}
+}
+
+func (c *CoordinatorActor) handlePhase2Complete(msg *messages.Phase2Complete) {
+	c.completedActors[msg.Sender.String()] = true
+
+	log.Printf("[Coordinator] Phase 2 complete from %s", msg.Sender)
 }
 
 func (c *CoordinatorActor) completeAlgorithm() {
@@ -158,10 +170,10 @@ func (c *CoordinatorActor) completeAlgorithm() {
 		Iterations:      c.iteration,
 	}
 
-	for _, pid := range c.System.GetPartitions() {
+	for _, pid := range c.System.GetActors(actor.PartitionType) {
 		c.Send(pid, msg)
 	}
-	for _, pid := range c.System.GetAggregators() {
+	for _, pid := range c.System.GetActors(actor.AggregatorType) {
 		c.Send(pid, msg)
 	}
 

@@ -11,17 +11,12 @@ import (
 
 type Transport struct {
 	machineID string
-	system    *actor.ActorSystem
 }
 
 func NewTransport(machineID string) *Transport {
 	return &Transport{
 		machineID: machineID,
 	}
-}
-
-func (t *Transport) SetSystem(system *actor.ActorSystem) {
-	t.system = system
 }
 
 func (t *Transport) Start(ctx context.Context) error {

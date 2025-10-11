@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"sort"
 	"sync"
 
 	"github.com/distributed-louvain/pkg/actor"
@@ -15,8 +16,9 @@ type MachineInfo struct {
 type SimpleProvider struct {
 	machineID    string
 	machines     map[string]*MachineInfo
-	aggregators  []actor.PID       // Shared list of aggregator actors
-	partitions   []actor.PID       // Shared list of partition actors
+	transport    *Transport
+	coordinator  actor.PID
+	actorMap     map[actor.ActorType][]actor.PID
 	mu           sync.RWMutex
 }
 
@@ -24,9 +26,14 @@ func NewSimpleProvider(machineID string) *SimpleProvider {
 	return &SimpleProvider{
 		machineID:   machineID,
 		machines:    make(map[string]*MachineInfo),
-		aggregators: make([]actor.PID, 0),
-		partitions:  make([]actor.PID, 0),
+		transport:   NewTransport(machineID),
+		coordinator: actor.PID{},
+		actorMap:    make(map[actor.ActorType][]actor.PID),
 	}
+}
+
+func (p *SimpleProvider) MachineID() string {
+	return p.machineID
 }
 
 func (p *SimpleProvider) Start(ctx context.Context) error {
@@ -34,55 +41,46 @@ func (p *SimpleProvider) Start(ctx context.Context) error {
 		ID:      p.machineID,
 		Address: "localhost:8080",
 	}
+
+	p.transport.Start(ctx)
+
 	return nil
 }
 
-func (p *SimpleProvider) RegisterAggregator(pid actor.PID) error {
+func (p *SimpleProvider) SetCoordinator(coordinator actor.PID) {
+	p.coordinator = coordinator
+}
+
+func (p *SimpleProvider) RegisterActor(actorType actor.ActorType, pid actor.PID) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	for _, existing := range p.aggregators {
-		if existing.String() == pid.String() {
-			return nil // Already registered
-		}
-	}
+	p.actorMap[actorType] = append(p.actorMap[actorType], pid)
 
-	p.aggregators = append(p.aggregators, pid)
+  actors := p.actorMap[actorType]
+
+	// Sort by MachineID first, then by ActorID for deterministic ordering
+	sort.Slice(actors, func(i, j int) bool {
+		if actors[i].MachineID != actors[j].MachineID {
+			return actors[i].MachineID < actors[j].MachineID
+		}
+		return actors[i].ActorID < actors[j].ActorID
+	})
 
 	return nil
 }
 
-func (p *SimpleProvider) RegisterPartition(pid actor.PID) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	for _, existing := range p.partitions {
-		if existing.String() == pid.String() {
-			return nil // Already registered
-		}
-	}
-
-	p.partitions = append(p.partitions, pid)
-
-	return nil
+func (p *SimpleProvider) GetCoordinator() actor.PID {
+	return p.coordinator
 }
 
-func (p *SimpleProvider) GetAggregators() []actor.PID {
+func (p *SimpleProvider) GetActors(actorType actor.ActorType) []actor.PID {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	result := make([]actor.PID, len(p.aggregators))
-	copy(result, p.aggregators)
-	return result
-}
-
-func (p *SimpleProvider) GetPartitions() []actor.PID {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	result := make([]actor.PID, len(p.partitions))
-	copy(result, p.partitions)
-	return result
+	actors := make([]actor.PID, len(p.actorMap[actorType]))
+	copy(actors, p.actorMap[actorType])
+	return actors
 }
 
 func (p *SimpleProvider) RegisterMachine(machineID, address string) {
@@ -97,6 +95,11 @@ func (p *SimpleProvider) RegisterMachine(machineID, address string) {
 	}
 }
 
+func (p *SimpleProvider) Send(to actor.PID, msg actor.Message) error {
+	return p.transport.Send(to, msg)
+}
+
 func (p *SimpleProvider) Stop() error {
+	p.transport.Stop()
 	return nil
 }

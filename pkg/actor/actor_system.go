@@ -5,48 +5,35 @@ import (
 	"sync"
 )
 
-type Transport interface {
+type Provider interface {
+	GetActors(actorType ActorType) []PID
+	MachineID() string
 	Send(to PID, msg Message) error
 	Start(ctx context.Context) error
 	Stop() error
 }
 
-type Provider interface {
-	GetAggregators() []PID
-	GetPartitions() []PID
-	Start(ctx context.Context) error
-	Stop() error
-}
-
 type ActorSystem struct {
-	machineId    string
 	actors    map[string]Actor
 	mu        sync.RWMutex
-	transport Transport
 	provider Provider
 	ctx       context.Context
 	cancel    context.CancelFunc
 }
 
-func NewActorSystem(machineId string, transport Transport, provider Provider) *ActorSystem {
+func NewActorSystem(machineId string, provider Provider) *ActorSystem {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ActorSystem{
-		machineId:    machineId,
 		actors:    make(map[string]Actor),
-		transport: transport,
 		provider: provider,
 		ctx:       ctx,
 		cancel:    cancel,
 	}
 }
 
-func (s *ActorSystem) MachineID() string {
-	return s.machineId
-}
-
 func (s *ActorSystem) Start() error {
-	if s.transport != nil {
-		return s.transport.Start(s.ctx)
+	if s.provider != nil {
+		return s.provider.Start(s.ctx)
 	}
 	return nil
 }
@@ -71,7 +58,7 @@ func (s *ActorSystem) Unregister(actorID string) {
 }
 
 func (s *ActorSystem) Send(to PID, msg Message) error {
-	if to.IsLocal(s.machineId) {
+	if to.IsLocal(s.provider.MachineID()) {
 		return s.localDeliver(to, msg)
 	}
 	return s.remoteDeliver(to, msg)
@@ -96,30 +83,10 @@ func (s *ActorSystem) localDeliver(to PID, msg Message) error {
 }
 
 func (s *ActorSystem) remoteDeliver(to PID, msg Message) error {
-	if s.transport == nil {
+	if s.provider == nil {
 		return fmt.Errorf("no transport configured for remote delivery")
 	}
-	return s.transport.Send(to, msg)
-}
-
-func (s *ActorSystem) GetActor(actorID string) (Actor, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	actor, exists := s.actors[actorID]
-	return actor, exists
-}
-
-func (s *ActorSystem) Broadcast(msg Message) {
-	s.mu.RLock()
-	actors := make([]Actor, 0, len(s.actors))
-	for _, actor := range s.actors {
-		actors = append(actors, actor)
-	}
-	s.mu.RUnlock()
-
-	for _, actor := range actors {
-		go actor.Receive(s.ctx, msg)
-	}
+	return s.provider.Send(to, msg)
 }
 
 func (s *ActorSystem) Shutdown() {
@@ -136,21 +103,14 @@ func (s *ActorSystem) Shutdown() {
 		actor.Stop()
 	}
 
-	if s.transport != nil {
-		s.transport.Stop()
+	if s.provider != nil {
+		s.provider.Stop()
 	}
 }
 
-func (s *ActorSystem) GetAggregators() []PID {
+func (s *ActorSystem) GetActors(actorType ActorType) []PID {
 	if s.provider != nil {
-		return s.provider.GetAggregators()
-	}
-	return []PID{}
-}
-
-func (s *ActorSystem) GetPartitions() []PID {
-	if s.provider != nil {
-		return s.provider.GetPartitions()
+		return s.provider.GetActors(actorType)
 	}
 	return []PID{}
 }

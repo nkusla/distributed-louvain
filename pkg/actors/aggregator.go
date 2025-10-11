@@ -71,7 +71,7 @@ func (a *AggregatorActor) handleEdgeAggregate(msg *messages.EdgeAggregate) {
 	a.edgeWeights[edgeKey] += msg.Weight
 
 	log.Printf("[Aggregator %s] Received edge (%d,%d) weight %.2f from partition %d, total: %.2f",
-		a.PID().ActorID, msg.CommunityU, msg.CommunityV, msg.Weight, msg.PartitionID, a.edgeWeights[edgeKey])
+		a.PID().ActorID, msg.CommunityU, msg.CommunityV, msg.Weight, msg.Sender.ActorID, a.edgeWeights[edgeKey])
 }
 
 func (a *AggregatorActor) resetCounters() {
@@ -83,7 +83,10 @@ func (a *AggregatorActor) CompleteAggregation() {
 	superEdges := make([]messages.SuperEdge, 0, len(a.edgeWeights))
 	for edgeKey, weight := range a.edgeWeights {
 		var commU, commV int
-		parseEdgeKey(edgeKey, &commU, &commV)
+		if err := parseEdgeKey(edgeKey, &commU, &commV); err != nil {
+			log.Printf("[Aggregator %s] Error parsing edge key: %s", a.PID().ActorID, err)
+			continue
+		}
 
 		superEdges = append(superEdges, messages.SuperEdge{
 			CommunityU: commU,
@@ -95,7 +98,6 @@ func (a *AggregatorActor) CompleteAggregation() {
 	log.Printf("[Aggregator %s] Aggregation complete. Total super-edges: %d", a.PID().ActorID, len(superEdges))
 
 	a.Send(a.coordinator, &messages.AggregationComplete{
-		ActorID:    a.PID().ActorID,
 		SuperEdges: superEdges,
 		Sender:     a.PID(),
 	})
@@ -116,12 +118,13 @@ func makeEdgeKey(u, v int) string {
 	return fmt.Sprintf("%d-%d", u, v)
 }
 
-func parseEdgeKey(key string, u, v *int) {
+func parseEdgeKey(key string, u, v *int) error {
 	parts := strings.Split(key, "-")
 	if len(parts) != 2 {
-		return // or handle error appropriately
+		return fmt.Errorf("invalid edge key: %s", key)
 	}
 
 	*u, _ = strconv.Atoi(parts[0])
 	*v, _ = strconv.Atoi(parts[1])
+	return nil
 }
