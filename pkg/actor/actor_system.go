@@ -14,7 +14,6 @@ type Transport interface {
 type Provider interface {
 	GetAggregators() []PID
 	GetPartitions() []PID
-	FindActor(actorID string) (PID, error)
 	Start(ctx context.Context) error
 	Stop() error
 }
@@ -154,11 +153,4 @@ func (s *ActorSystem) GetPartitions() []PID {
 		return s.provider.GetPartitions()
 	}
 	return []PID{}
-}
-
-func (s *ActorSystem) FindActor(actorID string) (PID, error) {
-	if s.provider != nil {
-		return s.provider.FindActor(actorID)
-	}
-	return PID{}, fmt.Errorf("no cluster provider available")
 }
