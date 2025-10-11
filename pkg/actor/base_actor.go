@@ -16,13 +16,13 @@ type Actor interface {
 type BaseActor struct {
 	pid     PID
 	Mailbox *Mailbox
-	System  *System
+	System  *ActorSystem
 	Ctx     context.Context
 	Cancel  context.CancelFunc
 	Wg      sync.WaitGroup
 }
 
-func NewBaseActor(pid PID, system *System, mailboxSize int) *BaseActor {
+func NewBaseActor(pid PID, system *ActorSystem, mailboxSize int) *BaseActor {
 	return &BaseActor{
 		pid:     pid,
 		Mailbox: NewMailbox(mailboxSize),

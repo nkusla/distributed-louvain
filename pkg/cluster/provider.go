@@ -37,15 +37,6 @@ func (p *SimpleProvider) Start(ctx context.Context) error {
 	return nil
 }
 
-func (p *SimpleProvider) RegisterActor(pid actor.PID) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.actorMap[pid.ActorID] = pid.MachineID
-
-	return nil
-}
-
 func (p *SimpleProvider) RegisterAggregator(pid actor.PID) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
