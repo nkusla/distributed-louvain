@@ -1,0 +1,61 @@
+package crdt
+
+type NodeTransition struct {
+	NodeID          int
+	CommunityID     int
+	ModularityDelta float64
+}
+
+type NodeSet struct {
+	transitions map[int]*NodeTransition // nodeID -> best transition with highest modularity delta
+}
+
+func NewNodeSet() *NodeSet {
+	return &NodeSet{
+		transitions: make(map[int]*NodeTransition),
+	}
+}
+
+func (n *NodeSet) Add(nodeID, communityID int, delta float64) {
+	// Symmetry breaking: only allow moves where nodeID > communityID
+	if nodeID <= communityID {
+		communityID, nodeID = nodeID, communityID
+	}
+
+	existing, exists := n.transitions[nodeID]
+
+	if !exists || delta > existing.ModularityDelta {
+		n.transitions[nodeID] = &NodeTransition{
+			NodeID:          nodeID,
+			CommunityID:     communityID,
+			ModularityDelta: delta,
+		}
+	}
+}
+
+func (n *NodeSet) Get(nodeID int) (*NodeTransition, bool) {
+	transition, exists := n.transitions[nodeID]
+	return transition, exists
+}
+
+func (n *NodeSet) Merge(other *NodeSet) {
+	for nodeID, transition := range other.transitions {
+		existing, exists := n.transitions[nodeID]
+
+		if !exists || transition.ModularityDelta > existing.ModularityDelta {
+			n.transitions[nodeID] = &NodeTransition{
+				NodeID:          transition.NodeID,
+				CommunityID:     transition.CommunityID,
+				ModularityDelta: transition.ModularityDelta,
+			}
+		}
+	}
+}
+
+func (n *NodeSet) Clear() {
+	n.transitions = make(map[int]*NodeTransition)
+}
+
+func (n *NodeSet) Size() int {
+	return len(n.transitions)
+}
