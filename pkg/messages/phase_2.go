@@ -10,10 +10,14 @@ func (m *StartPhase2) Type() string { return "StartPhase2" }
 type EdgeAggregate struct {
 	CommunityU int
 	CommunityV int
-	Weight     float64
+	Weight     int
 	Sender     actor.PID
 }
 func (m *EdgeAggregate) Type() string { return "EdgeAggregate" }
+
+
+
+
 
 type AggregationComplete struct {
 	SuperEdges []SuperEdge
@@ -43,7 +47,7 @@ func (m *Phase2Complete) Type() string { return "Phase2Complete" }
 type SuperEdge struct {
 	CommunityU int
 	CommunityV int
-	Weight     float64
+	Weight     int
 }
 
 type GraphData struct {

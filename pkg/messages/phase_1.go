@@ -29,7 +29,3 @@ type LocalOptimizationComplete struct {
 	Sender	actor.PID
 }
 func (m *LocalOptimizationComplete) Type() string { return "LocalOptimizationComplete" }
-
-type Phase1Complete struct {
-}
-func (m *Phase1Complete) Type() string { return "Phase1Complete" }

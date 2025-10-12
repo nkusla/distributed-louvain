@@ -71,6 +71,10 @@ func (p *PartitionActor) Receive(ctx context.Context, msg actor.Message) {
 		p.handleDegreeRequest(m)
 	case *messages.DegreeResponse:
 		p.handleDegreeResponse(m)
+	case *messages.LocalOptimizationComplete:
+		p.handleLocalOptimizationComplete(m)
+	case *messages.StartPhase2:
+		p.handleStartPhase2()
 	case *messages.AlgorithmComplete:
 		p.handleAlgorithmComplete(m)
 	default:
@@ -117,6 +121,8 @@ func (p *PartitionActor) handleStartPhase1() {
 			p.processedNodePairs++
 		}
 	}
+
+	p.checkLocalOptimizationComplete()
 }
 
 func (p *PartitionActor) handleDegreeRequest(msg *messages.DegreeRequest) {
@@ -140,7 +146,6 @@ func (p *PartitionActor) handleDegreeResponse(msg *messages.DegreeResponse) {
 	p.checkLocalOptimizationComplete()
 }
 
-
 func (p *PartitionActor) calculateModularityDelta(nodeU int, nodeV int) float64 {
 	sumIn := p.partition.GetWeight(nodeU, nodeV)
 	sumTot := p.partition.Degree[nodeU] + p.partition.Degree[nodeV] - 2 * sumIn
@@ -158,10 +163,50 @@ func (p *PartitionActor) checkLocalOptimizationComplete() {
 	log.Printf("[Partition %s] Local optimization complete. Processed %d node pairs",
 			p.PID().ActorID, p.processedNodePairs)
 
-	p.Send(p.coordinator, &messages.LocalOptimizationComplete{
-			NodeSet: p.nodeSet,
-			Sender: p.PID(),
+	p.System.Broadcast(p.PID(), actor.PartitionType, &messages.LocalOptimizationComplete{
+		NodeSet: p.nodeSet,
+		Sender: p.PID(),
 	})
+
+	p.Send(p.coordinator, &messages.LocalOptimizationComplete{
+		NodeSet: p.nodeSet,
+		Sender: p.PID(),
+	})
+}
+
+func (p *PartitionActor) handleLocalOptimizationComplete(msg *messages.LocalOptimizationComplete) {
+	p.nodeSet.Merge(msg.NodeSet)
+}
+
+func (p *PartitionActor) handleStartPhase2() {
+	p.currentPhase = 2
+
+	for nodeID := range p.partition.Adj {
+		for _, neighbor := range p.partition.Adj[nodeID] {
+
+			communityU := nodeID
+			communityV := neighbor.NodeID
+			weight := neighbor.Weight
+
+			if transition, exists := p.nodeSet.Get(nodeID); exists {
+				communityU = transition.CommunityID
+			}
+			if transition, exists := p.nodeSet.Get(neighbor.NodeID); exists {
+				communityV = transition.CommunityID
+			}
+
+			if communityU == communityV {
+				continue
+			}
+
+			p.System.Broadcast(p.PID(), actor.PartitionType, &messages.EdgeAggregate{
+				CommunityU: communityU,
+				CommunityV: communityV,
+				Weight: weight,
+				Sender: p.PID(),
+			})
+		}
+	}
 }
 
 func (p *PartitionActor) handleAlgorithmComplete(msg *messages.AlgorithmComplete) {

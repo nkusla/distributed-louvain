@@ -14,14 +14,14 @@ import (
 type AggregatorActor struct {
 	*actor.BaseActor
 	coordinator   actor.PID
-	edgeWeights   map[string]float64 // Map of edge key -> total weight
+	edgeWeights   map[string]int // Map of edge key -> total weight
 }
 
 func NewAggregatorActor(pid actor.PID, system *actor.ActorSystem, coordinator actor.PID, numPartitions int) *AggregatorActor {
 	return &AggregatorActor{
 		BaseActor:    actor.NewBaseActor(pid, system, 1000),
 		coordinator:  coordinator,
-		edgeWeights:  make(map[string]float64),
+		edgeWeights:  make(map[string]int),
 	}
 }
 
@@ -75,7 +75,7 @@ func (a *AggregatorActor) handleEdgeAggregate(msg *messages.EdgeAggregate) {
 }
 
 func (a *AggregatorActor) resetCounters() {
-	a.edgeWeights = make(map[string]float64)
+	a.edgeWeights = make(map[string]int)
 	log.Printf("[Aggregator %s] Reset edge weights for new aggregation phase", a.PID().ActorID)
 }
 
