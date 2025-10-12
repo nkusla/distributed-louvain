@@ -3,11 +3,13 @@ package actors
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"log"
 	"strconv"
 	"strings"
 
 	"github.com/distributed-louvain/pkg/actor"
+	"github.com/distributed-louvain/pkg/graph"
 	"github.com/distributed-louvain/pkg/messages"
 )
 
@@ -80,7 +82,7 @@ func (a *AggregatorActor) resetCounters() {
 }
 
 func (a *AggregatorActor) CompleteAggregation() {
-	superEdges := make([]messages.SuperEdge, 0, len(a.edgeWeights))
+	partitionEdges := make(map[actor.PID][]graph.Edge)
 	for edgeKey, weight := range a.edgeWeights {
 		var commU, commV int
 		if err := parseEdgeKey(edgeKey, &commU, &commV); err != nil {
@@ -88,19 +90,32 @@ func (a *AggregatorActor) CompleteAggregation() {
 			continue
 		}
 
-		superEdges = append(superEdges, messages.SuperEdge{
-			CommunityU: commU,
-			CommunityV: commV,
-			Weight:     weight,
-		})
+		targetPartition, err := a.getTargetPartition(commU)
+		if err != nil {
+			log.Printf("[Aggregator %s] Error getting target partition for u=%d: %v", a.PID().ActorID, commU, err)
+			continue
+		}
+
+		partitionEdges[targetPartition] = append(partitionEdges[targetPartition], graph.Edge{U: commU, V: commV, W: weight})
+
+		targetPartition, err = a.getTargetPartition(commV)
+		if err != nil {
+			log.Printf("[Aggregator %s] Error getting target partition for v=%d: %v", a.PID().ActorID, commV, err)
+			continue
+		}
+
+		partitionEdges[targetPartition] = append(partitionEdges[targetPartition], graph.Edge{U: commV, V: commU, W: weight})
 	}
 
-	log.Printf("[Aggregator %s] Aggregation complete. Total super-edges: %d", a.PID().ActorID, len(superEdges))
+	for partitionPID, edges := range partitionEdges {
+		a.Send(partitionPID, &messages.AggregationResult{
+			Edges: edges,
+		})
 
-	a.Send(a.coordinator, &messages.AggregationComplete{
-		SuperEdges: superEdges,
-		Sender:     a.PID(),
-	})
+		a.Send(a.coordinator, &messages.AggregationComplete{
+			Sender: a.PID(),
+		})
+	}
 }
 
 func (a *AggregatorActor) handleAlgorithmComplete(msg *messages.AlgorithmComplete) {
@@ -108,6 +123,20 @@ func (a *AggregatorActor) handleAlgorithmComplete(msg *messages.AlgorithmComplet
 		a.PID().ActorID, msg.FinalModularity)
 
 	a.Stop()
+}
+
+func (a *AggregatorActor) getTargetPartition(u int) (actor.PID, error) {
+	partitions := a.System.GetActors(actor.PartitionType)
+	if len(partitions) == 0 {
+		return actor.PID{}, fmt.Errorf("no partition actors available")
+	}
+
+	h := fnv.New32a()
+	h.Write([]byte(fmt.Sprintf("%d", u)))
+	hash := h.Sum32()
+
+	targetIndex := int(hash) % len(partitions)
+	return partitions[targetIndex], nil
 }
 
 func makeEdgeKey(u, v int) string {

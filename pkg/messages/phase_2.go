@@ -1,6 +1,7 @@
 package messages
 
 import "github.com/distributed-louvain/pkg/actor"
+import "github.com/distributed-louvain/pkg/graph"
 
 // Phase 2: Aggregation Messages
 
@@ -15,53 +16,17 @@ type EdgeAggregate struct {
 }
 func (m *EdgeAggregate) Type() string { return "EdgeAggregate" }
 
-
-
-
-
-type AggregationComplete struct {
-	SuperEdges []SuperEdge
-	Sender     actor.PID
-}
-func (m *AggregationComplete) Type() string { return "AggregationComplete" }
-
-type StartRedistribution struct {
-	NewGraph GraphData
-}
-func (m *StartRedistribution) Type() string { return "StartRedistribution" }
-
-type RedistributionComplete struct {
-	NodesCount  int
-	EdgesCount  int
-	Sender      actor.PID
-}
-func (m *RedistributionComplete) Type() string { return "RedistributionComplete" }
-
-type Phase2Complete struct {
+type EdgeAggregateComplete struct {
 	Sender actor.PID
 }
-func (m *Phase2Complete) Type() string { return "Phase2Complete" }
+func (m *EdgeAggregateComplete) Type() string { return "EdgeAggregateComplete" }
 
-// Helper types
-
-type SuperEdge struct {
-	CommunityU int
-	CommunityV int
-	Weight     int
+type AggregationResult struct {
+	Edges 	[]graph.Edge
 }
+func (m *AggregationResult) Type() string { return "AggregationResult" }
 
-type GraphData struct {
-	Nodes []NodeData
-	Edges []EdgeData
+type AggregationComplete struct {
+	Sender actor.PID
 }
-
-type NodeData struct {
-	ID        int
-	Community int
-}
-
-type EdgeData struct {
-	From   int
-	To     int
-	Weight float64
-}
+func (m *AggregationComplete) Type() string { return "AggregationComplete" }

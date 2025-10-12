@@ -2,6 +2,8 @@ package actors
 
 import (
 	"context"
+	"fmt"
+	"hash/fnv"
 	"log"
 
 	"github.com/distributed-louvain/pkg/actor"
@@ -67,10 +69,6 @@ func (c *CoordinatorActor) Receive(ctx context.Context, msg actor.Message) {
 		c.handleLocalOptimizationComplete(m)
 	case *messages.AggregationComplete:
 		c.handleAggregationComplete(m)
-	case *messages.RedistributionComplete:
-		c.handleRedistributionComplete(m)
-	case *messages.Phase2Complete:
-		c.handlePhase2Complete(m)
 	default:
 		log.Printf("[Coordinator] Received unknown message type: %s", msg.Type())
 	}
@@ -179,31 +177,9 @@ func (c *CoordinatorActor) handleAggregationComplete(msg *messages.AggregationCo
 	log.Printf("[Coordinator] Aggregation complete from %s", msg.Sender)
 
 	if len(c.completedActors) == len(c.System.GetActors(actor.AggregatorType)) {
-		c.startRedistribution()
-	}
-}
-
-func (c *CoordinatorActor) startRedistribution() {
-	log.Printf("[Coordinator] Starting redistribution")
-
-	c.iteration++
-}
-
-func (c *CoordinatorActor) handleRedistributionComplete(msg *messages.RedistributionComplete) {
-	c.completedActors[msg.Sender.String()] = true
-
-	log.Printf("[Coordinator] Redistribution complete from %s", msg.Sender)
-
-	if len(c.completedActors) == len(c.System.GetActors(actor.PartitionType)) {
 		c.iteration++
 		c.startPhase1()
 	}
-}
-
-func (c *CoordinatorActor) handlePhase2Complete(msg *messages.Phase2Complete) {
-	c.completedActors[msg.Sender.String()] = true
-
-	log.Printf("[Coordinator] Phase 2 complete from %s", msg.Sender)
 }
 
 func (c *CoordinatorActor) completeAlgorithm() {
@@ -219,4 +195,18 @@ func (c *CoordinatorActor) completeAlgorithm() {
 	log.Printf("Final Modularity: %.6f\n", c.totalModularity)
 	log.Printf("Total Iterations: %d\n", c.iteration)
 	log.Println("==========================")
+}
+
+func (c *CoordinatorActor) getTargetPartitionForNode(nodeID int) (actor.PID, error) {
+	partitions := c.System.GetActors(actor.PartitionType)
+	if len(partitions) == 0 {
+		return actor.PID{}, fmt.Errorf("no partition actors available")
+	}
+
+	h := fnv.New32a()
+	h.Write([]byte(fmt.Sprintf("%d", nodeID)))
+	hash := h.Sum32()
+
+	targetIndex := int(hash) % len(partitions)
+	return partitions[targetIndex], nil
 }

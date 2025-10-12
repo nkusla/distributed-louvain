@@ -2,6 +2,8 @@ package actors
 
 import (
 	"context"
+	"fmt"
+	"hash/fnv"
 	"log"
 	"sync"
 
@@ -73,6 +75,8 @@ func (p *PartitionActor) Receive(ctx context.Context, msg actor.Message) {
 		p.handleDegreeResponse(m)
 	case *messages.LocalOptimizationComplete:
 		p.handleLocalOptimizationComplete(m)
+	case *messages.AggregationResult:
+		p.handleAggregationResult(m)
 	case *messages.StartPhase2:
 		p.handleStartPhase2()
 	case *messages.AlgorithmComplete:
@@ -199,14 +203,29 @@ func (p *PartitionActor) handleStartPhase2() {
 				continue
 			}
 
-			p.System.Broadcast(p.PID(), actor.PartitionType, &messages.EdgeAggregate{
+			targetAggregator, err := p.getTargetAggregator(communityU, communityV)
+			if err != nil {
+				log.Printf("[Partition %s] Error getting target aggregator: %v", p.PID().ActorID, err)
+				continue
+			}
+
+			p.Send(targetAggregator, &messages.EdgeAggregate{
 				CommunityU: communityU,
 				CommunityV: communityV,
 				Weight: weight,
 				Sender: p.PID(),
 			})
+
+			log.Printf("[Partition %s] Sent edge (%d,%d) weight %d to aggregator %s",
+				p.PID().ActorID, communityU, communityV, weight, targetAggregator.ActorID)
 		}
 	}
+
+	p.partition = graph.NewGraph()
+}
+
+func (p *PartitionActor) handleAggregationResult(msg *messages.AggregationResult) {
+	p.partition.AddEdges(msg.Edges)
 }
 
 func (p *PartitionActor) handleAlgorithmComplete(msg *messages.AlgorithmComplete) {
@@ -214,4 +233,23 @@ func (p *PartitionActor) handleAlgorithmComplete(msg *messages.AlgorithmComplete
 		p.PID().ActorID, msg.FinalModularity)
 
 	p.Stop()
+}
+
+func (p *PartitionActor) getTargetAggregator(communityU, communityV int) (actor.PID, error) {
+	aggregators := p.System.GetActors(actor.AggregatorType)
+	if len(aggregators) == 0 {
+		return actor.PID{}, fmt.Errorf("no aggregator actors available")
+	}
+
+	u, v := communityU, communityV
+	if u > v {
+		u, v = v, u
+	}
+
+	h := fnv.New32a()
+	h.Write([]byte(fmt.Sprintf("%d-%d", u, v)))
+	hash := h.Sum32()
+
+	targetIndex := int(hash) % len(aggregators)
+	return aggregators[targetIndex], nil
 }
