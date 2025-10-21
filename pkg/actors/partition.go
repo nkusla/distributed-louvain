@@ -47,12 +47,12 @@ func (p *PartitionActor) Start(ctx context.Context) {
 }
 
 func (p *PartitionActor) run() {
-	log.Printf("[Partition %d] Started", p.PID().ActorID)
+	log.Printf("[%s] Started", p.PID().ActorID)
 
 	for {
 		select {
 		case <-p.Ctx.Done():
-			log.Printf("[Partition %d] Shutting down", p.PID().ActorID)
+			log.Printf("[%s] Shutting down", p.PID().ActorID)
 			return
 		case msg, ok := <-p.Mailbox.Receive():
 			if !ok {
@@ -82,14 +82,14 @@ func (p *PartitionActor) Receive(ctx context.Context, msg actor.Message) {
 	case *messages.AlgorithmComplete:
 		p.handleAlgorithmComplete(m)
 	default:
-		log.Printf("[Partition %d] Received unknown message type: %s", p.PID().ActorID, msg.Type())
+		log.Printf("[%s] Received unknown message type: %s", p.PID().ActorID, msg.Type())
 	}
 }
 
 func (p *PartitionActor) handleInitialPartitionCreation(msg *messages.InitialPartitionCreation) {
 	p.partition.AddEdges(msg.Edges)
 	p.totalGraphWeight = msg.TotalGraphWeight
-	log.Printf("[Partition %d] Received %d edges", p.PID().ActorID, len(msg.Edges))
+	log.Printf("[%s] Received %d edges", p.PID().ActorID, len(msg.Edges))
 	p.Send(p.coordinator, &messages.InitialPartitionCreationComplete{
 		Sender: p.PID(),
 	})
@@ -100,7 +100,7 @@ func (p *PartitionActor) handleStartPhase1() {
 	p.processedNodePairs = 0
 	p.totalNodePairs = 0
 
-	log.Printf("[Partition %s] Starting Phase 1", p.PID().ActorID)
+	log.Printf("[%s] Starting Phase 1", p.PID().ActorID)
 
 	for nodeId, neighbors := range p.partition.Adj {
 		for _, neighbor := range neighbors {
@@ -164,7 +164,7 @@ func (p *PartitionActor) checkLocalOptimizationComplete() {
 		return
 	}
 
-	log.Printf("[Partition %s] Local optimization complete. Processed %d node pairs",
+	log.Printf("[%s] Local optimization complete. Processed %d node pairs",
 			p.PID().ActorID, p.processedNodePairs)
 
 	p.System.Broadcast(p.PID(), actor.PartitionType, &messages.LocalOptimizationComplete{
@@ -205,7 +205,7 @@ func (p *PartitionActor) handleStartPhase2() {
 
 			targetAggregator, err := p.getTargetAggregator(communityU, communityV)
 			if err != nil {
-				log.Printf("[Partition %s] Error getting target aggregator: %v", p.PID().ActorID, err)
+				log.Printf("[%s] Error getting target aggregator: %v", p.PID().ActorID, err)
 				continue
 			}
 
@@ -216,7 +216,7 @@ func (p *PartitionActor) handleStartPhase2() {
 				Sender: p.PID(),
 			})
 
-			log.Printf("[Partition %s] Sent edge (%d,%d) weight %d to aggregator %s",
+			log.Printf("[%s] Sent edge (%d,%d) weight %d to aggregator %s",
 				p.PID().ActorID, communityU, communityV, weight, targetAggregator.ActorID)
 		}
 	}
@@ -229,7 +229,7 @@ func (p *PartitionActor) handleAggregationResult(msg *messages.AggregationResult
 }
 
 func (p *PartitionActor) handleAlgorithmComplete(msg *messages.AlgorithmComplete) {
-	log.Printf("[Partition %s] Algorithm complete! Final modularity: %.6f",
+	log.Printf("[%s] Algorithm complete! Final modularity: %.6f",
 		p.PID().ActorID, msg.FinalModularity)
 
 	p.Stop()

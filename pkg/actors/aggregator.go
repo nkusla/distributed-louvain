@@ -38,12 +38,12 @@ func (a *AggregatorActor) Start(ctx context.Context) {
 }
 
 func (a *AggregatorActor) run() {
-	log.Printf("[Aggregator %s] Started", a.PID().ActorID)
+	log.Printf("[%s] Started", a.PID().ActorID)
 
 	for {
 		select {
 		case <-a.Ctx.Done():
-			log.Printf("[Aggregator %s] Shutting down", a.PID().ActorID)
+			log.Printf("[%s] Shutting down", a.PID().ActorID)
 			return
 		case msg, ok := <-a.Mailbox.Receive():
 			if !ok {
@@ -63,7 +63,7 @@ func (a *AggregatorActor) Receive(ctx context.Context, msg actor.Message) {
 	case *messages.AlgorithmComplete:
 		a.handleAlgorithmComplete(m)
 	default:
-		log.Printf("[Aggregator %s] Received unknown message type: %s", a.PID().ActorID, msg.Type())
+		log.Printf("[%s] Received unknown message type: %s", a.PID().ActorID, msg.Type())
 	}
 }
 
@@ -72,13 +72,13 @@ func (a *AggregatorActor) handleEdgeAggregate(msg *messages.EdgeAggregate) {
 
 	a.edgeWeights[edgeKey] += msg.Weight
 
-	log.Printf("[Aggregator %s] Received edge (%d,%d) weight %.2f from partition %d, total: %.2f",
+	log.Printf("[%s] Received edge (%d,%d) weight %d from %s, total: %d",
 		a.PID().ActorID, msg.CommunityU, msg.CommunityV, msg.Weight, msg.Sender.ActorID, a.edgeWeights[edgeKey])
 }
 
 func (a *AggregatorActor) resetCounters() {
 	a.edgeWeights = make(map[string]int)
-	log.Printf("[Aggregator %s] Reset edge weights for new aggregation phase", a.PID().ActorID)
+	log.Printf("[%s] Reset edge weights for new aggregation phase", a.PID().ActorID)
 }
 
 func (a *AggregatorActor) CompleteAggregation() {
@@ -86,13 +86,13 @@ func (a *AggregatorActor) CompleteAggregation() {
 	for edgeKey, weight := range a.edgeWeights {
 		var commU, commV int
 		if err := parseEdgeKey(edgeKey, &commU, &commV); err != nil {
-			log.Printf("[Aggregator %s] Error parsing edge key: %s", a.PID().ActorID, err)
+			log.Printf("[%s] Error parsing edge key: %s", a.PID().ActorID, err)
 			continue
 		}
 
 		targetPartition, err := a.getTargetPartition(commU)
 		if err != nil {
-			log.Printf("[Aggregator %s] Error getting target partition for u=%d: %v", a.PID().ActorID, commU, err)
+			log.Printf("[%s] Error getting target partition for u=%d: %v", a.PID().ActorID, commU, err)
 			continue
 		}
 
@@ -100,7 +100,7 @@ func (a *AggregatorActor) CompleteAggregation() {
 
 		targetPartition, err = a.getTargetPartition(commV)
 		if err != nil {
-			log.Printf("[Aggregator %s] Error getting target partition for v=%d: %v", a.PID().ActorID, commV, err)
+			log.Printf("[%s] Error getting target partition for v=%d: %v", a.PID().ActorID, commV, err)
 			continue
 		}
 
@@ -119,7 +119,7 @@ func (a *AggregatorActor) CompleteAggregation() {
 }
 
 func (a *AggregatorActor) handleAlgorithmComplete(msg *messages.AlgorithmComplete) {
-	log.Printf("[Aggregator %s] Algorithm complete! Final modularity: %.6f",
+	log.Printf("[%s] Algorithm complete! Final modularity: %.6f",
 		a.PID().ActorID, msg.FinalModularity)
 
 	a.Stop()
