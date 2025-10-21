@@ -45,12 +45,12 @@ func (c *CoordinatorActor) Start(ctx context.Context) {
 }
 
 func (c *CoordinatorActor) run() {
-	log.Printf("[Coordinator] Started")
+	log.Printf("[coordinator] Started")
 
 	for {
 		select {
 		case <-c.Ctx.Done():
-			log.Printf("[Coordinator] Shutting down")
+			log.Printf("[coordinator] Shutting down")
 			return
 		case msg, ok := <-c.Mailbox.Receive():
 			if !ok {
@@ -70,18 +70,18 @@ func (c *CoordinatorActor) Receive(ctx context.Context, msg actor.Message) {
 	case *messages.AggregationComplete:
 		c.handleAggregationComplete(m)
 	default:
-		log.Printf("[Coordinator] Received unknown message type: %s", msg.Type())
+		log.Printf("[coordinator] Received unknown message type: %s", msg.Type())
 	}
 }
 
 func (c *CoordinatorActor) StartAlgorithm(edges []graph.Edge, totalGraphWeight int) {
-	log.Printf("[Coordinator] Starting Louvain algorithm")
+	log.Printf("[coordinator] Starting Louvain algorithm")
 
 	partitionPIDs := c.System.GetActors(actor.PartitionType)
 	numPartitions := len(partitionPIDs)
 
 	if numPartitions == 0 {
-		log.Printf("[Coordinator] No partition actors available")
+		log.Printf("[coordinator] No partition actors available")
 		return
 	}
 
@@ -100,7 +100,7 @@ func (c *CoordinatorActor) StartAlgorithm(edges []graph.Edge, totalGraphWeight i
 	}
 
 	for i, pid := range partitionPIDs {
-		log.Printf("[Coordinator] Sending %d edges to partition %s", len(partitionEdges[i]), pid)
+		log.Printf("[coordinator] Sending %d edges to partition %s", len(partitionEdges[i]), pid)
 		c.Send(pid, &messages.InitialPartitionCreation{
 			Edges: partitionEdges[i],
 			TotalGraphWeight: totalGraphWeight,
@@ -112,7 +112,7 @@ func (c *CoordinatorActor) handleInitialPartitionCreationComplete(msg *messages.
 	c.completedActors[msg.Sender.String()] = true
 
 	if len(c.completedActors) == len(c.System.GetActors(actor.PartitionType)) {
-		log.Printf("[Coordinator] Initial partition creation complete")
+		log.Printf("[coordinator] Initial partition creation complete")
 		c.startPhase1()
 	}
 }
@@ -122,7 +122,7 @@ func (c *CoordinatorActor) startPhase1() {
 	c.completedActors = make(map[string]bool)
 	c.nodeset.Clear()
 
-	log.Printf("[Coordinator] Starting Phase 1: Local Optimization")
+	log.Printf("[coordinator] Starting Phase 1: Local Optimization")
 
 	for _, pid := range c.System.GetActors(actor.PartitionType) {
 		c.Send(pid, &messages.StartPhase1{})
@@ -133,7 +133,7 @@ func (c *CoordinatorActor) handleLocalOptimizationComplete(msg *messages.LocalOp
 	c.completedActors[msg.Sender.String()] = true
 	c.nodeset.Merge(msg.NodeSet)
 
-	log.Printf("[Coordinator] Local optimization complete from %s", msg.Sender)
+	log.Printf("[coordinator] Local optimization complete from %s", msg.Sender)
 
 	if len(c.completedActors) == len(c.System.GetActors(actor.PartitionType)) {
 		c.checkConvergence()
@@ -147,11 +147,11 @@ func (c *CoordinatorActor) checkConvergence() {
 	}
 
 	improvement := c.totalModularity - c.prevModularity
-	log.Printf("[Coordinator] Iteration %d complete. Modularity: %.6f (improvement: %.6f)",
+	log.Printf("[coordinator] Iteration %d complete. Modularity: %.6f (improvement: %.6f)",
 		c.iteration, c.totalModularity, improvement)
 
 	if improvement < 1e-6 || c.iteration >= c.maxIterations {
-		log.Printf("[Coordinator] Algorithm converged!")
+		log.Printf("[coordinator] Algorithm converged!")
 		c.completeAlgorithm()
 		return
 	}
@@ -164,7 +164,7 @@ func (c *CoordinatorActor) startPhase2() {
 	c.currentPhase = 2
 	c.completedActors = make(map[string]bool)
 
-	log.Printf("[Coordinator] Starting Phase 2: Aggregation")
+	log.Printf("[coordinator] Starting Phase 2: Aggregation")
 
 	c.System.Broadcast(c.PID(), actor.PartitionType, &messages.StartPhase2{})
 
@@ -174,7 +174,7 @@ func (c *CoordinatorActor) startPhase2() {
 func (c *CoordinatorActor) handleAggregationComplete(msg *messages.AggregationComplete) {
 	c.completedActors[msg.Sender.String()] = true
 
-	log.Printf("[Coordinator] Aggregation complete from %s", msg.Sender)
+	log.Printf("[coordinator] Aggregation complete from %s", msg.Sender)
 
 	if len(c.completedActors) == len(c.System.GetActors(actor.AggregatorType)) {
 		c.iteration++
