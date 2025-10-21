@@ -68,3 +68,15 @@ func (n *NodeSet) Clear() {
 func (n *NodeSet) Size() int {
 	return len(n.transitions)
 }
+
+func (n *NodeSet) Clone() *NodeSet {
+	clone := NewNodeSet()
+	for nodeID, transition := range n.transitions {
+		clone.transitions[nodeID] = &NodeTransition{
+			NodeID:          transition.NodeID,
+			CommunityID:     transition.CommunityID,
+			ModularityDelta: transition.ModularityDelta,
+		}
+	}
+	return clone
+}

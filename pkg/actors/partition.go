@@ -167,13 +167,15 @@ func (p *PartitionActor) checkLocalOptimizationComplete() {
 	log.Printf("[%s] Local optimization complete. Processed %d node pairs",
 			p.PID().ActorID, p.processedNodePairs)
 
+	nodeSetClone := p.nodeSet.Clone()
+
 	p.System.Broadcast(p.PID(), actor.PartitionType, &messages.LocalOptimizationComplete{
-		NodeSet: p.nodeSet,
+		NodeSet: nodeSetClone,
 		Sender: p.PID(),
 	})
 
 	p.Send(p.coordinator, &messages.LocalOptimizationComplete{
-		NodeSet: p.nodeSet,
+		NodeSet: nodeSetClone,
 		Sender: p.PID(),
 	})
 }
