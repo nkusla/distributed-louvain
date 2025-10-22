@@ -5,31 +5,35 @@ import (
 	"fmt"
 	"hash/fnv"
 	"log"
+	"path/filepath"
 
 	"github.com/distributed-louvain/pkg/actor"
 	"github.com/distributed-louvain/pkg/crdt"
+	"github.com/distributed-louvain/pkg/graphio"
 	"github.com/distributed-louvain/pkg/graph"
 	"github.com/distributed-louvain/pkg/messages"
 )
 
 type CoordinatorActor struct {
 	*actor.BaseActor
-	currentPhase    int
-	iteration       int
-	maxIterations   int
-	prevModularity  float64
-	completedActors map[string]bool
-	nodeset         *crdt.NodeSet
+	currentPhase      int
+	iteration         int
+	maxIterations     int
+	prevModularity    float64
+	completedActors   map[string]bool
+	nodeset           *crdt.NodeSet
+	nodeCommunityMap  map[int]int // maps node ID to its current community ID
 }
 
 func NewCoordinatorActor(pid actor.PID, system *actor.ActorSystem, maxIterations int) *CoordinatorActor {
 	return &CoordinatorActor{
-		BaseActor:       actor.NewBaseActor(pid, system, 1000),
-		completedActors: make(map[string]bool),
-		currentPhase:    0,
-		nodeset:         crdt.NewNodeSet(),
-		iteration:       0,
-		maxIterations:   maxIterations,
+		BaseActor:        actor.NewBaseActor(pid, system, 1000),
+		completedActors:  make(map[string]bool),
+		currentPhase:     0,
+		nodeset:          crdt.NewNodeSet(),
+		iteration:        0,
+		maxIterations:    maxIterations,
+		nodeCommunityMap: make(map[int]int),
 	}
 }
 
@@ -77,6 +81,11 @@ func (c *CoordinatorActor) Receive(ctx context.Context, msg actor.Message) {
 
 func (c *CoordinatorActor) StartAlgorithm(edges []graph.Edge, totalGraphWeight int) {
 	log.Printf("[coordinator] Starting Louvain algorithm")
+
+	for _, edge := range edges {
+		c.nodeCommunityMap[edge.U] = edge.U
+		c.nodeCommunityMap[edge.V] = edge.V
+	}
 
 	partitionPIDs := c.System.GetActors(actor.PartitionType)
 	numPartitions := len(partitionPIDs)
@@ -128,9 +137,17 @@ func (c *CoordinatorActor) startPhase1() {
 	c.completedActors = make(map[string]bool)
 
 	c.nodeset.Project()
-	for _, transition := range c.nodeset.GetAll() {
-		log.Printf("[coordinator] Nodeset transition: %d -> %d (delta: %.6f)", transition.NodeID, transition.CommunityID, transition.ModularityDelta)
+
+	// Update node community map with the projected transitions
+	for nodeID, communityID := range c.nodeCommunityMap {
+		for _, transition := range c.nodeset.GetAll() {
+			if communityID == transition.NodeID {
+				c.nodeCommunityMap[nodeID] = transition.CommunityID
+				break
+			}
+		}
 	}
+
 	c.nodeset.Clear()
 
 	log.Printf("[coordinator] Starting Phase 1: Local Optimization")
@@ -221,6 +238,9 @@ func (c *CoordinatorActor) completeAlgorithm() {
 	c.System.Broadcast(c.PID(), actor.PartitionType, msg)
 	c.System.Broadcast(c.PID(), actor.AggregatorType, msg)
 
+	// Save community assignments to CSV
+	c.saveCommunityAssignments()
+
 	logStr := fmt.Sprintf(
 		"\n====== ALGORITHM COMPLETE ======\n"+
 		"Final Modularity: %.6f\n"+
@@ -229,6 +249,18 @@ func (c *CoordinatorActor) completeAlgorithm() {
 		c.prevModularity, c.iteration, c.maxIterations)
 
 	log.Println(logStr)
+}
+
+func (c *CoordinatorActor) saveCommunityAssignments() {
+	filePath := filepath.Join("output", "community.csv")
+	headers := []string{"nodeId", "communityId"}
+
+	if err := graphio.WriteIntMapToCSV(filePath, headers, c.nodeCommunityMap); err != nil {
+		log.Printf("[coordinator] Error saving community assignments: %v", err)
+		return
+	}
+
+	log.Printf("[coordinator] Community assignments saved to %s", filePath)
 }
 
 func (c *CoordinatorActor) getTargetPartitionForNode(nodeID int) (actor.PID, error) {

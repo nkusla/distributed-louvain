@@ -1,10 +1,7 @@
 package graph
 
 import (
-	"encoding/csv"
-	"fmt"
-	"os"
-	"strconv"
+	"github.com/distributed-louvain/pkg/graphio"
 )
 
 type Edge struct {
@@ -68,45 +65,25 @@ func (g *Graph) GetWeight(nodeU, nodeV int) int {
 }
 
 func ReadEdgesFromCSV(filename string) ([]Edge, error) {
-	file, err := os.Open(filename)
+	records, err := graphio.ReadCSVWithHeader(filename, true, "u")
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-	records, err := reader.ReadAll()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read CSV: %w", err)
-	}
-
-	// Skip header row if present
-	if len(records) > 0 && records[0][0] == "u" {
-		records = records[1:]
+		return nil, err
 	}
 
 	edges := make([]Edge, 0, len(records))
 	for i, record := range records {
-		if len(record) != 3 {
-			return nil, fmt.Errorf("line %d: expected 3 columns, got %d", i+2, len(record)) // i+2 because we account for header
+		lineNum := i + 2 // +2 because we account for header and 1-based indexing
+
+		if err := graphio.ValidateRecordLength(record, 3, lineNum); err != nil {
+			return nil, err
 		}
 
-		u, err := strconv.Atoi(record[0])
+		values, err := graphio.ParseIntRecord(record, lineNum)
 		if err != nil {
-			return nil, fmt.Errorf("line %d: invalid source node: %w", i+2, err)
+			return nil, err
 		}
 
-		v, err := strconv.Atoi(record[1])
-		if err != nil {
-			return nil, fmt.Errorf("line %d: invalid target node: %w", i+2, err)
-		}
-
-		w, err := strconv.Atoi(record[2])
-		if err != nil {
-			return nil, fmt.Errorf("line %d: invalid weight: %w", i+2, err)
-		}
-
-		edges = append(edges, NewEdge(u, v, w))
+		edges = append(edges, NewEdge(values[0], values[1], values[2]))
 	}
 
 	return edges, nil
