@@ -190,6 +190,8 @@ func (p *PartitionActor) handleLocalOptimizationComplete(msg *messages.LocalOpti
 
 func (p *PartitionActor) handleStartPhase2() {
 	p.currentPhase = 2
+	p.nodeSet.Project()
+	p.nodeSet.Clear()
 
 	for nodeID := range p.partition.Adj {
 		for _, neighbor := range p.partition.Adj[nodeID] {

@@ -126,6 +126,11 @@ func (c *CoordinatorActor) handleInitialPartitionCreationComplete(msg *messages.
 func (c *CoordinatorActor) startPhase1() {
 	c.currentPhase = 1
 	c.completedActors = make(map[string]bool)
+
+	c.nodeset.Project()
+	for _, transition := range c.nodeset.GetAll() {
+		log.Printf("[coordinator] Nodeset transition: %d -> %d (delta: %.6f)", transition.NodeID, transition.CommunityID, transition.ModularityDelta)
+	}
 	c.nodeset.Clear()
 
 	log.Printf("[coordinator] Starting Phase 1: Local Optimization")

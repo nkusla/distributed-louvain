@@ -61,6 +61,22 @@ func (n *NodeSet) Merge(other *NodeSet) {
 	}
 }
 
+func (n *NodeSet) Project() {
+	communityBest := make(map[int]*NodeTransition)
+
+	for _, transition := range n.transitions {
+		existing, exists := communityBest[transition.CommunityID]
+		if !exists || transition.ModularityDelta > existing.ModularityDelta {
+			communityBest[transition.CommunityID] = transition
+		}
+	}
+
+	n.transitions = make(map[int]*NodeTransition)
+	for _, transition := range communityBest {
+		n.transitions[transition.NodeID] = transition
+	}
+}
+
 func (n *NodeSet) Clear() {
 	n.transitions = make(map[int]*NodeTransition)
 }
