@@ -186,6 +186,7 @@ func (c *CoordinatorActor) handleEdgeAggregateComplete(msg *messages.EdgeAggrega
 	if len(c.completedActors) == len(c.System.GetActors(actor.PartitionType)) {
 		log.Printf("[coordinator] All partitions completed edge aggregation, telling aggregators to complete")
 		// Tell all aggregators to complete their aggregation
+		c.completedActors = make(map[string]bool)
 		for _, pid := range c.System.GetActors(actor.AggregatorType) {
 			c.Send(pid, &messages.CompleteAggregation{})
 		}
@@ -214,7 +215,7 @@ func (c *CoordinatorActor) completeAlgorithm() {
 
 	log.Println("\n=== ALGORITHM COMPLETE ===")
 	log.Printf("Final Modularity: %.6f\n", c.totalModularity)
-	log.Printf("Total Iterations: %d\n", c.iteration)
+	log.Printf("Total Iterations: %d / %d\n", c.iteration, c.maxIterations)
 	log.Println("==========================")
 }
 
