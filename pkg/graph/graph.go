@@ -80,25 +80,30 @@ func ReadEdgesFromCSV(filename string) ([]Edge, error) {
 		return nil, fmt.Errorf("failed to read CSV: %w", err)
 	}
 
+	// Skip header row if present
+	if len(records) > 0 && records[0][0] == "u" {
+		records = records[1:]
+	}
+
 	edges := make([]Edge, 0, len(records))
 	for i, record := range records {
 		if len(record) != 3 {
-			return nil, fmt.Errorf("line %d: expected 3 columns, got %d", i+1, len(record))
+			return nil, fmt.Errorf("line %d: expected 3 columns, got %d", i+2, len(record)) // i+2 because we account for header
 		}
 
 		u, err := strconv.Atoi(record[0])
 		if err != nil {
-			return nil, fmt.Errorf("line %d: invalid source node: %w", i+1, err)
+			return nil, fmt.Errorf("line %d: invalid source node: %w", i+2, err)
 		}
 
 		v, err := strconv.Atoi(record[1])
 		if err != nil {
-			return nil, fmt.Errorf("line %d: invalid target node: %w", i+1, err)
+			return nil, fmt.Errorf("line %d: invalid target node: %w", i+2, err)
 		}
 
 		w, err := strconv.Atoi(record[2])
 		if err != nil {
-			return nil, fmt.Errorf("line %d: invalid weight: %w", i+1, err)
+			return nil, fmt.Errorf("line %d: invalid weight: %w", i+2, err)
 		}
 
 		edges = append(edges, NewEdge(u, v, w))
