@@ -17,7 +17,6 @@ type CoordinatorActor struct {
 	currentPhase    int
 	iteration       int
 	maxIterations   int
-	totalModularity float64
 	prevModularity  float64
 	completedActors map[string]bool
 	nodeset         *crdt.NodeSet
@@ -149,21 +148,25 @@ func (c *CoordinatorActor) handleLocalOptimizationComplete(msg *messages.LocalOp
 
 func (c *CoordinatorActor) checkConvergence() {
 	transitions := c.nodeset.GetAll()
+
+	// Calculate modularity for this iteration only (don't accumulate)
+	currentModularity := 0.0
 	for _, transition := range transitions {
-		c.totalModularity += transition.ModularityDelta
+		currentModularity += transition.ModularityDelta
 	}
 
-	improvement := c.totalModularity - c.prevModularity
+	improvement := currentModularity - c.prevModularity
 	log.Printf("[coordinator] Iteration %d complete. Modularity: %.6f (improvement: %.6f)",
-		c.iteration, c.totalModularity, improvement)
+		c.iteration, currentModularity, improvement)
 
 	if improvement < 1e-6 || c.iteration >= c.maxIterations {
 		log.Printf("[coordinator] Algorithm converged!")
+		c.prevModularity = currentModularity
 		c.completeAlgorithm()
 		return
 	}
 
-	c.prevModularity = c.totalModularity
+	c.prevModularity = currentModularity
 	c.startPhase2()
 }
 
@@ -206,17 +209,21 @@ func (c *CoordinatorActor) handleAggregationComplete(msg *messages.AggregationCo
 
 func (c *CoordinatorActor) completeAlgorithm() {
 	msg := &messages.AlgorithmComplete{
-		FinalModularity: c.totalModularity,
+		FinalModularity: c.prevModularity,
 		Iterations:      c.iteration,
 	}
 
 	c.System.Broadcast(c.PID(), actor.PartitionType, msg)
 	c.System.Broadcast(c.PID(), actor.AggregatorType, msg)
 
-	log.Println("\n=== ALGORITHM COMPLETE ===")
-	log.Printf("Final Modularity: %.6f\n", c.totalModularity)
-	log.Printf("Total Iterations: %d / %d\n", c.iteration, c.maxIterations)
-	log.Println("==========================")
+	logStr := fmt.Sprintf(
+		"\n====== ALGORITHM COMPLETE ======\n"+
+		"Final Modularity: %.6f\n"+
+		"Total Iterations: %d / %d\n"+
+		"================================",
+		c.prevModularity, c.iteration, c.maxIterations)
+
+	log.Println(logStr)
 }
 
 func (c *CoordinatorActor) getTargetPartitionForNode(nodeID int) (actor.PID, error) {

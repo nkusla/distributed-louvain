@@ -152,9 +152,12 @@ func (p *PartitionActor) handleDegreeResponse(msg *messages.DegreeResponse) {
 
 func (p *PartitionActor) calculateModularityDelta(nodeU int, nodeV int) float64 {
 	sumIn := p.partition.GetWeight(nodeU, nodeV)
-	sumTot := p.partition.Degree[nodeU] + p.partition.Degree[nodeV] - 2 * sumIn
 
-	modularityDelta := float64(sumIn) / float64(2 * p.totalGraphWeight) - float64(sumTot) / float64(4 * p.totalGraphWeight * p.totalGraphWeight)
+	sumTotU := p.partition.Degree[nodeU]
+	sumTotV := p.partition.Degree[nodeV]
+	m := float64(p.totalGraphWeight)
+
+	modularityDelta := float64(sumIn) / (2.0 * m) - float64(sumTotU * sumTotV) / (4.0 * m * m)
 
 	return modularityDelta
 }

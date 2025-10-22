@@ -19,7 +19,7 @@ const (
 	NumPartitions       = 4
 	NumAggregators      = 2
 	MachineID           = "machine-0"
-	MaxIterations       = 5
+	MaxIterations       = 20
 	AlgorithmTimeout    = 60 * time.Second
 	ShutdownGracePeriod = 2 * time.Second
 )
