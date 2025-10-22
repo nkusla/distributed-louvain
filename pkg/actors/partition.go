@@ -246,8 +246,6 @@ func (p *PartitionActor) handleAggregationResult(msg *messages.AggregationResult
 func (p *PartitionActor) handleAlgorithmComplete(msg *messages.AlgorithmComplete) {
 	log.Printf("[%s] Algorithm complete! Final modularity: %.6f",
 		p.PID().ActorID, msg.FinalModularity)
-
-	p.Stop()
 }
 
 func (p *PartitionActor) getTargetAggregator(communityU, communityV int) (actor.PID, error) {

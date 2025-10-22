@@ -104,8 +104,6 @@ func main() {
 	}
 
 	log.Println("Shutting down...")
-	cancel()
-	coordinator.Stop()
-	time.Sleep(ShutdownGracePeriod)
+	system.Shutdown()
 	log.Println("Shutdown complete")
 }
