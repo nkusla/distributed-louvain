@@ -102,7 +102,6 @@ func ReadEdgesFromCSV(filename string) ([]Edge, error) {
 		}
 
 		edges = append(edges, NewEdge(u, v, w))
-		edges = append(edges, NewEdge(v, u, w))
 	}
 
 	return edges, nil
