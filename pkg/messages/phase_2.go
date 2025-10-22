@@ -30,3 +30,6 @@ type AggregationComplete struct {
 	Sender actor.PID
 }
 func (m *AggregationComplete) Type() string { return "AggregationComplete" }
+
+type CompleteAggregation struct{}
+func (m *CompleteAggregation) Type() string { return "CompleteAggregation" }

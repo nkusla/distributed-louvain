@@ -67,6 +67,8 @@ func (c *CoordinatorActor) Receive(ctx context.Context, msg actor.Message) {
 		c.handleInitialPartitionCreationComplete(m)
 	case *messages.LocalOptimizationComplete:
 		c.handleLocalOptimizationComplete(m)
+	case *messages.EdgeAggregateComplete:
+		c.handleEdgeAggregateComplete(m)
 	case *messages.AggregationComplete:
 		c.handleAggregationComplete(m)
 	default:
@@ -92,11 +94,16 @@ func (c *CoordinatorActor) StartAlgorithm(edges []graph.Edge, totalGraphWeight i
 
 	for _, edge := range edges {
 		partitionU := edge.U % numPartitions
+		partitionV := edge.V % numPartitions
+
+		// Send edge to partition containing node U
 		partitionEdges[partitionU] = append(partitionEdges[partitionU], edge)
 
-		partitionV := edge.V % numPartitions
-		reversedEdge := graph.NewEdge(edge.V, edge.U, edge.W)
-		partitionEdges[partitionV] = append(partitionEdges[partitionV], reversedEdge)
+		// Only send reversed edge if nodes are in different partitions
+		if partitionU != partitionV {
+			reversedEdge := graph.NewEdge(edge.V, edge.U, edge.W)
+			partitionEdges[partitionV] = append(partitionEdges[partitionV], reversedEdge)
+		}
 	}
 
 	for i, pid := range partitionPIDs {
@@ -169,6 +176,20 @@ func (c *CoordinatorActor) startPhase2() {
 	c.System.Broadcast(c.PID(), actor.PartitionType, &messages.StartPhase2{})
 
 	c.System.Broadcast(c.PID(), actor.AggregatorType, &messages.StartPhase2{})
+}
+
+func (c *CoordinatorActor) handleEdgeAggregateComplete(msg *messages.EdgeAggregateComplete) {
+	c.completedActors[msg.Sender.String()] = true
+
+	log.Printf("[coordinator] Edge aggregation complete from %s", msg.Sender)
+
+	if len(c.completedActors) == len(c.System.GetActors(actor.PartitionType)) {
+		log.Printf("[coordinator] All partitions completed edge aggregation, telling aggregators to complete")
+		// Tell all aggregators to complete their aggregation
+		for _, pid := range c.System.GetActors(actor.AggregatorType) {
+			c.Send(pid, &messages.CompleteAggregation{})
+		}
+	}
 }
 
 func (c *CoordinatorActor) handleAggregationComplete(msg *messages.AggregationComplete) {

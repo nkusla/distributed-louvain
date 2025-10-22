@@ -60,6 +60,8 @@ func (a *AggregatorActor) Receive(ctx context.Context, msg actor.Message) {
 		a.resetCounters()
 	case *messages.EdgeAggregate:
 		a.handleEdgeAggregate(m)
+	case *messages.CompleteAggregation:
+		a.CompleteAggregation()
 	case *messages.AlgorithmComplete:
 		a.handleAlgorithmComplete(m)
 	default:
@@ -72,7 +74,7 @@ func (a *AggregatorActor) handleEdgeAggregate(msg *messages.EdgeAggregate) {
 
 	a.edgeWeights[edgeKey] += msg.Weight
 
-	log.Printf("[%s] Received edge (%d,%d) weight %d from %s, total: %d",
+	log.Printf("[%s] Received community edge (%d,%d) weight %d from %s, total: %d",
 		a.PID().ActorID, msg.CommunityU, msg.CommunityV, msg.Weight, msg.Sender.ActorID, a.edgeWeights[edgeKey])
 }
 
@@ -111,11 +113,11 @@ func (a *AggregatorActor) CompleteAggregation() {
 		a.Send(partitionPID, &messages.AggregationResult{
 			Edges: edges,
 		})
-
-		a.Send(a.coordinator, &messages.AggregationComplete{
-			Sender: a.PID(),
-		})
 	}
+
+	a.Send(a.coordinator, &messages.AggregationComplete{
+		Sender: a.PID(),
+	})
 }
 
 func (a *AggregatorActor) handleAlgorithmComplete(msg *messages.AlgorithmComplete) {

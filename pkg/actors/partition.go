@@ -160,7 +160,7 @@ func (p *PartitionActor) calculateModularityDelta(nodeU int, nodeV int) float64 
 }
 
 func (p *PartitionActor) checkLocalOptimizationComplete() {
-	if p.processedNodePairs < p.totalNodePairs{
+	if p.processedNodePairs < p.totalNodePairs {
 		return
 	}
 
@@ -181,6 +181,7 @@ func (p *PartitionActor) checkLocalOptimizationComplete() {
 }
 
 func (p *PartitionActor) handleLocalOptimizationComplete(msg *messages.LocalOptimizationComplete) {
+	log.Printf("[%s] Received local optimization complete from %s", p.PID().ActorID, msg.Sender)
 	p.nodeSet.Merge(msg.NodeSet)
 }
 
@@ -189,6 +190,11 @@ func (p *PartitionActor) handleStartPhase2() {
 
 	for nodeID := range p.partition.Adj {
 		for _, neighbor := range p.partition.Adj[nodeID] {
+			// Only process edge in one direction to avoid duplicates
+			// Process edge (nodeID, neighbor.NodeID) only if nodeID < neighbor.NodeID
+			if nodeID >= neighbor.NodeID {
+				continue
+			}
 
 			communityU := nodeID
 			communityV := neighbor.NodeID
@@ -218,12 +224,16 @@ func (p *PartitionActor) handleStartPhase2() {
 				Sender: p.PID(),
 			})
 
-			log.Printf("[%s] Sent edge (%d,%d) weight %d to aggregator %s",
+			log.Printf("[%s] Sent community edge (%d,%d) weight %d to aggregator %s",
 				p.PID().ActorID, communityU, communityV, weight, targetAggregator.ActorID)
 		}
 	}
 
 	p.partition = graph.NewGraph()
+
+	p.Send(p.coordinator, &messages.EdgeAggregateComplete{
+		Sender: p.PID(),
+	})
 }
 
 func (p *PartitionActor) handleAggregationResult(msg *messages.AggregationResult) {
