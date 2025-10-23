@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -77,19 +76,8 @@ func main() {
 		partitions[i] = partition
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	if err := system.Start(); err != nil {
 		log.Fatalf("Failed to start actor system: %v", err)
-	}
-
-	coordinator.Start(ctx)
-	for _, aggregator := range aggregators {
-		aggregator.Start(ctx)
-	}
-	for _, partition := range partitions {
-		partition.Start(ctx)
 	}
 
 	coordinator.StartAlgorithm(edges, totalWeight)
