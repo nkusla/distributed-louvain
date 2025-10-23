@@ -6,12 +6,12 @@ import (
 )
 
 type InitialPartitionCreation struct{
-	Edges []graph.Edge
-	TotalGraphWeight int
+	Edges []graph.Edge `json:"edges"`
+	TotalGraphWeight int `json:"total_graph_weight"`
 }
 func (m *InitialPartitionCreation) Type() string { return "InitialPartitionCreation" }
 
 type InitialPartitionCreationComplete struct{
-	Sender actor.PID
+	Sender actor.PID `json:"sender"`
 }
 func (m *InitialPartitionCreationComplete) Type() string { return "InitialPartitionCreationComplete" }

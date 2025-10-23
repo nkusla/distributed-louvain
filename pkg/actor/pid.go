@@ -1,10 +1,13 @@
 package actor
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type PID struct {
-	MachineID  string
-	ActorID string
+	MachineID string `json:"machine_id"`
+	ActorID   string `json:"actor_id"`
 }
 
 func NewPID(machineId string, actorID string) PID {
@@ -31,10 +34,9 @@ func (p PID) Equal(other PID) bool {
 }
 
 func ParsePID(s string) (PID, error) {
-	var machineId, actorID string
-	_, err := fmt.Sscanf(s, "%s/%s", &machineId, &actorID)
-	if err != nil {
+	parts := strings.Split(s, "/")
+	if len(parts) != 2 {
 		return PID{}, fmt.Errorf("invalid PID format: %s", s)
 	}
-	return PID{MachineID: machineId, ActorID: actorID}, nil
+	return PID{MachineID: parts[0], ActorID: parts[1]}, nil
 }

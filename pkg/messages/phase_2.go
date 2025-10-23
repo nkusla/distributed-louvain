@@ -9,25 +9,25 @@ type StartPhase2 struct{}
 func (m *StartPhase2) Type() string { return "StartPhase2" }
 
 type EdgeAggregate struct {
-	CommunityU int
-	CommunityV int
-	Weight     int
-	Sender     actor.PID
+	CommunityU int `json:"community_u"`
+	CommunityV int `json:"community_v"`
+	Weight     int `json:"weight"`
+	Sender     actor.PID `json:"sender"`
 }
 func (m *EdgeAggregate) Type() string { return "EdgeAggregate" }
 
 type EdgeAggregateComplete struct {
-	Sender actor.PID
+	Sender actor.PID `json:"sender"`
 }
 func (m *EdgeAggregateComplete) Type() string { return "EdgeAggregateComplete" }
 
 type AggregationResult struct {
-	Edges 	[]graph.Edge
+	Edges 	[]graph.Edge `json:"edges"`
 }
 func (m *AggregationResult) Type() string { return "AggregationResult" }
 
 type AggregationComplete struct {
-	Sender actor.PID
+	Sender actor.PID `json:"sender"`
 }
 func (m *AggregationComplete) Type() string { return "AggregationComplete" }
 

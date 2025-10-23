@@ -1,8 +1,8 @@
 package messages
 
 type AlgorithmComplete struct {
-	FinalModularity float64
-	Iterations      int
+	FinalModularity float64 `json:"final_modularity"`
+	Iterations      int `json:"iterations"`
 }
 func (m *AlgorithmComplete) Type() string { return "AlgorithmComplete" }
 

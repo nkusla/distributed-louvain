@@ -5,9 +5,9 @@ import (
 )
 
 type Edge struct {
-	U   int
-	V   int
-	W   int
+	U   int `json:"u"`
+	V   int `json:"v"`
+	W   int `json:"w"`
 }
 
 func NewEdge(u, v int, w int) Edge {
