@@ -91,6 +91,13 @@ func (c *CoordinatorActor) handleStartAlgorithmRequest(msg *messages.StartAlgori
 
 	log.Printf("[coordinator] Starting Louvain algorithm with data from %s", dataPath)
 
+	// Reset state for new algorithm run
+	c.nodeset.Clear()
+	c.nodeCommunityMap = make(map[int]int)
+	c.completedActors = make(map[string]bool)
+	c.iteration = 0
+	c.prevModularity = 0.0
+
 	edges, totalGraphWeight, err := graph.LoadGraphData(dataPath)
 	if err != nil {
 		log.Printf("[coordinator] Failed to load graph data: %v", err)
@@ -259,8 +266,9 @@ func (c *CoordinatorActor) completeAlgorithm() {
 		"\n====== ALGORITHM COMPLETE ======\n"+
 		"Final Modularity: %.6f\n"+
 		"Total Iterations: %d / %d\n"+
+		"Total Communities: %d\n"+
 		"================================",
-		c.prevModularity, c.iteration, c.maxIterations)
+		c.prevModularity, c.iteration, c.maxIterations, c.countTotalCommunities())
 
 	log.Println(logStr)
 }
@@ -275,6 +283,14 @@ func (c *CoordinatorActor) saveCommunityAssignments() {
 	}
 
 	log.Printf("[coordinator] Community assignments saved to %s", filePath)
+}
+
+func (c *CoordinatorActor) countTotalCommunities() int {
+	communitySet := make(map[int]bool)
+	for _, communityID := range c.nodeCommunityMap {
+		communitySet[communityID] = true
+	}
+	return len(communitySet)
 }
 
 func (c *CoordinatorActor) getTargetPartitionForNode(nodeID int) (actor.PID, error) {

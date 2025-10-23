@@ -81,7 +81,6 @@ func main() {
 		log.Printf("Using remote coordinator: %s -> %s", cfg.MachineID, cfg.Coordinator)
 	}
 
-	aggregators := make([]*actors.AggregatorActor, cfg.Actors.Aggregators)
 	for i := 0; i < cfg.Actors.Aggregators; i++ {
 		aggregatorPID := actor.NewPID(cfg.MachineID, fmt.Sprintf("aggregator-%d", i))
 		aggregator := actors.NewAggregatorActor(aggregatorPID, system, coordinatorPID, cfg.Actors.Partitions)
@@ -91,10 +90,8 @@ func main() {
 		if err := provider.RegisterActor(actor.AggregatorType, aggregatorPID); err != nil {
 			log.Fatalf("Failed to register aggregator %d in provider: %v", i, err)
 		}
-		aggregators[i] = aggregator
 	}
 
-	partitions := make([]*actors.PartitionActor, cfg.Actors.Partitions)
 	for i := 0; i < cfg.Actors.Partitions; i++ {
 		partitionPID := actor.NewPID(cfg.MachineID, fmt.Sprintf("partition-%d", i))
 		partition := actors.NewPartitionActor(partitionPID, system, coordinatorPID)
@@ -104,7 +101,6 @@ func main() {
 		if err := provider.RegisterActor(actor.PartitionType, partitionPID); err != nil {
 			log.Fatalf("Failed to register partition %d in provider: %v", i, err)
 		}
-		partitions[i] = partition
 	}
 
 	if err := system.Start(); err != nil {
