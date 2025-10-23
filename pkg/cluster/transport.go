@@ -54,6 +54,7 @@ func NewTransport(machineID string, port int) *Transport {
 }
 
 func (t *Transport) registerMessageTypes() {
+	t.messageTypes["StartAlgorithmRequest"] = func() actor.Message { return &messages.StartAlgorithmRequest{} }
 	t.messageTypes["InitialPartitionCreation"] = func() actor.Message { return &messages.InitialPartitionCreation{} }
 	t.messageTypes["InitialPartitionCreationComplete"] = func() actor.Message { return &messages.InitialPartitionCreationComplete{} }
 	t.messageTypes["StartPhase1"] = func() actor.Message { return &messages.StartPhase1{} }
@@ -77,11 +78,11 @@ func (t *Transport) SetActorSystem(system *actor.ActorSystem) {
 func (t *Transport) Start(ctx context.Context) error {
 	t.ctx, t.cancel = context.WithCancel(ctx)
 
-	log.Printf("[Transport] Starting HTTP server on %s", t.server.Addr)
+	log.Printf("[transport] Starting HTTP server on %s", t.server.Addr)
 
 	go func() {
 		if err := t.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("[Transport] Server error: %v", err)
+			log.Printf("[transport] Server error: %v", err)
 		}
 	}()
 
@@ -128,12 +129,12 @@ func (t *Transport) Send(to actor.PID, address string, msg actor.Message) error 
 		return fmt.Errorf("HTTP error %d: %s", resp.StatusCode, string(body))
 	}
 
-	log.Printf("[Transport] Sent message %s to %s", msg.Type(), envelope.To)
+	log.Printf("[transport] Sent message %s to %s", msg.Type(), envelope.To)
 	return nil
 }
 
 func (t *Transport) Stop() error {
-	log.Printf("[Transport] Stopping HTTP server")
+	log.Printf("[transport] Stopping HTTP server")
 
 	if t.cancel != nil {
 		t.cancel()
@@ -165,12 +166,12 @@ func (t *Transport) handleMessage(w http.ResponseWriter, r *http.Request) {
 
 	msg, err := t.decodeMessage(envelope.Type, envelope.Payload)
 	if err != nil {
-		log.Printf("[Transport] Failed to decode message: %v", err)
+		log.Printf("[transport] Failed to decode message: %v", err)
 		http.Error(w, "Failed to decode message", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("[Transport] Received message %s", envelope.Type)
+	log.Printf("[transport] Received message %s", envelope.Type)
 
 	t.system.Send(envelope.To, msg)
 

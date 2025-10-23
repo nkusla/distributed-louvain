@@ -1,5 +1,8 @@
 package messages
 
+type StartAlgorithmRequest struct {}
+func (m *StartAlgorithmRequest) Type() string { return "StartAlgorithmRequest" }
+
 type AlgorithmComplete struct {
 	FinalModularity float64 `json:"final_modularity"`
 	Iterations      int `json:"iterations"`

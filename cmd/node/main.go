@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os/signal"
+	"syscall"
 	"os"
 	"path/filepath"
 	"strings"
@@ -103,23 +105,23 @@ func main() {
 		partitions[i] = partition
 	}
 
-	// if err := system.Start(); err != nil {
-	// 	log.Fatalf("Failed to start actor system: %v", err)
-	// }
+	if err := system.Start(); err != nil {
+		log.Fatalf("Failed to start actor system: %v", err)
+	}
 
-	// sigChan := make(chan os.Signal, 1)
-	// signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	// select {
-	// case <-sigChan:
-	// 	log.Println("Received shutdown signal")
-	// case <-time.After(cfg.Algorithm.Timeout):
-	// 	log.Println("Algorithm execution timeout")
-	// }
+	select {
+	case <-sigChan:
+		log.Println("Received shutdown signal")
+	case <-time.After(cfg.Algorithm.Timeout):
+		log.Println("Algorithm execution timeout")
+	}
 
-	// log.Println("Shutting down...")
-	// system.Shutdown()
-	// log.Println("Shutdown complete")
+	log.Println("Shutting down...")
+	system.Shutdown()
+	log.Println("Shutdown complete")
 }
 
 func loadGraphData(dataPath string) ([]graph.Edge, int, error) {
