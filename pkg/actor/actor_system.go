@@ -32,9 +32,15 @@ func NewActorSystem(machineId string, provider Provider) *ActorSystem {
 }
 
 func (s *ActorSystem) Start() error {
-	if s.provider != nil {
-		return s.provider.Start(s.ctx)
+	err := s.provider.Start(s.ctx)
+	if err != nil {
+		return err
 	}
+
+	for _, actor := range s.actors {
+		actor.Start(s.ctx)
+	}
+
 	return nil
 }
 

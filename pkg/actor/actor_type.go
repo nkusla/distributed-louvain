@@ -11,11 +11,11 @@ const (
 func (at ActorType) String() string {
 	switch at {
 	case CoordinatorType:
-		return "Coordinator"
+		return "coordinator"
 	case AggregatorType:
-		return "Aggregator"
+		return "aggregator"
 	case PartitionType:
-		return "Partition"
+		return "partition"
 	default:
 		return "Unknown"
 	}
