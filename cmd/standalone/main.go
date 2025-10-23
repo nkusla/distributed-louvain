@@ -11,7 +11,7 @@ import (
 	"github.com/distributed-louvain/pkg/actor"
 	"github.com/distributed-louvain/pkg/actors"
 	"github.com/distributed-louvain/pkg/cluster"
-	"github.com/distributed-louvain/pkg/graph"
+	"github.com/distributed-louvain/pkg/messages"
 )
 
 const (
@@ -26,11 +26,6 @@ const (
 
 func main() {
 	fmt.Println("Starting standalone mode")
-
-	edges, totalWeight, err := graph.LoadGraphData(DataPath)
-	if err != nil {
-		log.Fatalf("Failed to load graph data: %v", err)
-	}
 
 	provider := cluster.NewSimpleProvider(MachineID, false)
 	system := actor.NewActorSystem(MachineID, provider)
@@ -68,7 +63,8 @@ func main() {
 		log.Fatalf("Failed to start actor system: %v", err)
 	}
 
-	coordinator.StartAlgorithm(edges, totalWeight)
+	os.Setenv("DATA_PATH", DataPath)
+	system.Send(coordinatorPID, &messages.StartAlgorithmRequest{})
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)

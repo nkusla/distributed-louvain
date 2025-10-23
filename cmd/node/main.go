@@ -16,7 +16,6 @@ import (
 	"github.com/distributed-louvain/pkg/actors"
 	"github.com/distributed-louvain/pkg/cluster"
 	"github.com/distributed-louvain/pkg/config"
-	"github.com/distributed-louvain/pkg/graph"
 )
 
 const (
@@ -38,6 +37,7 @@ func main() {
 
 	if *configPath != "" {
 		cfg, err = config.LoadConfig(*configPath)
+		os.Setenv("DATA_PATH", cfg.DataPath)
 		if err != nil {
 			log.Printf("Failed to load config: %v", err)
 			os.Exit(1)
@@ -122,22 +122,6 @@ func main() {
 	log.Println("Shutting down...")
 	system.Shutdown()
 	log.Println("Shutdown complete")
-}
-
-func loadGraphData(dataPath string) ([]graph.Edge, int, error) {
-	edges, err := graph.ReadEdgesFromCSV(dataPath)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	totalWeight := 0
-	for _, edge := range edges {
-		totalWeight += edge.W
-	}
-	totalWeight = totalWeight / 2
-	log.Printf("Total graph weight: %d", totalWeight)
-
-	return edges, totalWeight, nil
 }
 
 func registerPeerActors(provider *cluster.SimpleProvider, selfMachineID string) error {

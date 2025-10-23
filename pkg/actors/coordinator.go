@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"log"
 	"path/filepath"
+	"os"
 
 	"github.com/distributed-louvain/pkg/actor"
 	"github.com/distributed-louvain/pkg/crdt"
@@ -66,6 +67,8 @@ func (c *CoordinatorActor) run() {
 
 func (c *CoordinatorActor) Receive(ctx context.Context, msg actor.Message) {
 	switch m := msg.(type) {
+	case *messages.StartAlgorithmRequest:
+		c.handleStartAlgorithmRequest(m)
 	case *messages.InitialPartitionCreationComplete:
 		c.handleInitialPartitionCreationComplete(m)
 	case *messages.LocalOptimizationComplete:
@@ -79,9 +82,20 @@ func (c *CoordinatorActor) Receive(ctx context.Context, msg actor.Message) {
 	}
 }
 
-func (c *CoordinatorActor) StartAlgorithm(edges []graph.Edge, totalGraphWeight int) {
-	log.Printf("[coordinator] Starting Louvain algorithm")
+func (c *CoordinatorActor) handleStartAlgorithmRequest(msg *messages.StartAlgorithmRequest) {
+  dataPath := os.Getenv("DATA_PATH")
+	if dataPath == "" {
+		log.Printf("[coordinator] DATA_PATH is not set")
+		return
+	}
 
+	log.Printf("[coordinator] Starting Louvain algorithm with data from %s", dataPath)
+
+	edges, totalGraphWeight, err := graph.LoadGraphData(dataPath)
+	if err != nil {
+		log.Printf("[coordinator] Failed to load graph data: %v", err)
+		return
+	}
 	for _, edge := range edges {
 		c.nodeCommunityMap[edge.U] = edge.U
 		c.nodeCommunityMap[edge.V] = edge.V
