@@ -8,14 +8,9 @@ import (
 	"github.com/distributed-louvain/pkg/actor"
 )
 
-type MachineInfo struct {
-	ID      string
-	Address string
-}
-
 type SimpleProvider struct {
 	machineID    string
-	machines     map[string]*MachineInfo
+	machines     map[string]string
 	transport    *Transport
 	coordinator  actor.PID
 	actorMap     map[actor.ActorType][]actor.PID
@@ -25,8 +20,8 @@ type SimpleProvider struct {
 func NewSimpleProvider(machineID string) *SimpleProvider {
 	return &SimpleProvider{
 		machineID:   machineID,
-		machines:    make(map[string]*MachineInfo),
-		transport:   NewTransport(machineID),
+		machines:    make(map[string]string),
+		transport:   NewTransport(machineID, 8080), // Default port
 		coordinator: actor.PID{},
 		actorMap:    make(map[actor.ActorType][]actor.PID),
 	}
@@ -37,14 +32,15 @@ func (p *SimpleProvider) MachineID() string {
 }
 
 func (p *SimpleProvider) Start(ctx context.Context) error {
-	p.machines[p.machineID] = &MachineInfo{
-		ID:      p.machineID,
-		Address: "localhost:8080",
-	}
+	p.machines[p.machineID] = "localhost:8080"
 
 	p.transport.Start(ctx)
 
 	return nil
+}
+
+func (p *SimpleProvider) SetActorSystem(system *actor.ActorSystem) {
+	p.transport.SetActorSystem(system)
 }
 
 func (p *SimpleProvider) SetCoordinator(coordinator actor.PID) {
@@ -88,15 +84,12 @@ func (p *SimpleProvider) RegisterMachine(machineID, address string) {
 	defer p.mu.Unlock()
 
 	if _, exists := p.machines[machineID]; !exists {
-		p.machines[machineID] = &MachineInfo{
-			ID:      machineID,
-			Address: address,
-		}
+		p.machines[machineID] = address
 	}
 }
 
 func (p *SimpleProvider) Send(to actor.PID, msg actor.Message) error {
-	return p.transport.Send(to, msg)
+	return p.transport.Send(to, p.machines[to.MachineID], msg)
 }
 
 func (p *SimpleProvider) Stop() error {
