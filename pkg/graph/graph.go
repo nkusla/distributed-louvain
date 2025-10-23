@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"log"
 	"github.com/distributed-louvain/pkg/graphio"
 )
 
@@ -87,4 +88,20 @@ func ReadEdgesFromCSV(filename string) ([]Edge, error) {
 	}
 
 	return edges, nil
+}
+
+func LoadGraphData(dataPath string) ([]Edge, int, error) {
+	edges, err := ReadEdgesFromCSV(dataPath)
+	if err != nil {
+		return nil, 0, err
+	}
+	log.Printf("[graph] Loaded %d edges from %s", len(edges), dataPath)
+
+	totalWeight := 0
+	for _, edge := range edges {
+		totalWeight += edge.W
+	}
+	log.Printf("[graph] Total graph weight: %d", totalWeight)
+
+	return edges, totalWeight, nil
 }

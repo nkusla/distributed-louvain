@@ -17,7 +17,7 @@ import (
 const (
 	NumPartitions       = 4
 	NumAggregators      = 2
-	dataPath            = "data/karate_club.csv"
+	DataPath            = "data/karate_club.csv"
 	MachineID           = "machine-0"
 	MaxIterations       = 20
 	AlgorithmTimeout    = 60 * time.Second
@@ -27,18 +27,10 @@ const (
 func main() {
 	fmt.Println("Starting standalone mode")
 
-	edges, err := graph.ReadEdgesFromCSV(dataPath)
+	edges, totalWeight, err := graph.LoadGraphData(DataPath)
 	if err != nil {
-		log.Fatalf("Failed to read CSV: %v", err)
+		log.Fatalf("Failed to load graph data: %v", err)
 	}
-	log.Printf("Loaded %d edges from %s", len(edges), dataPath)
-
-	totalWeight := 0
-	for _, edge := range edges {
-		totalWeight += edge.W
-	}
-	totalWeight = totalWeight / 2
-	log.Printf("Total graph weight: %d", totalWeight)
 
 	provider := cluster.NewSimpleProvider(MachineID, false)
 	system := actor.NewActorSystem(MachineID, provider)
@@ -50,7 +42,6 @@ func main() {
 	}
 	provider.SetCoordinator(coordinatorPID)
 
-	aggregators := make([]*actors.AggregatorActor, NumAggregators)
 	for i := 0; i < NumAggregators; i++ {
 		aggregatorPID := actor.NewPID(MachineID, fmt.Sprintf("aggregator-%d", i))
 		aggregator := actors.NewAggregatorActor(aggregatorPID, system, coordinatorPID, NumPartitions)
@@ -60,10 +51,8 @@ func main() {
 		if err := provider.RegisterActor(actor.AggregatorType, aggregatorPID); err != nil {
 			log.Fatalf("Failed to register aggregator %d in provider: %v", i, err)
 		}
-		aggregators[i] = aggregator
 	}
 
-	partitions := make([]*actors.PartitionActor, NumPartitions)
 	for i := 0; i < NumPartitions; i++ {
 		partitionPID := actor.NewPID(MachineID, fmt.Sprintf("partition-%d", i))
 		partition := actors.NewPartitionActor(partitionPID, system, coordinatorPID)
@@ -73,7 +62,6 @@ func main() {
 		if err := provider.RegisterActor(actor.PartitionType, partitionPID); err != nil {
 			log.Fatalf("Failed to register partition %d in provider: %v", i, err)
 		}
-		partitions[i] = partition
 	}
 
 	if err := system.Start(); err != nil {
