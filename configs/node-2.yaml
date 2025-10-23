@@ -5,9 +5,8 @@ coordinator: "coordinator:8080"
 
 algorithm:
   max_iterations: 20
-  timeout: "60s"
+  timeout: "180s"
   grace_period: "2s"
-  data_path: "data/karate_club.csv"
 
 actors:
   partitions: 2

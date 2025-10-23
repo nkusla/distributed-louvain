@@ -76,7 +76,9 @@ func main() {
 		log.Printf("Registered coordinator actor")
 	} else {
 		coordinatorPID = actor.NewPID("coordinator", "coordinator")
-		log.Printf("Using remote coordinator: %s", coordinatorPID)
+		provider.SetCoordinator(coordinatorPID)
+		provider.RegisterMachine("coordinator", cfg.Coordinator)
+		log.Printf("Using remote coordinator: %s -> %s", cfg.MachineID, cfg.Coordinator)
 	}
 
 	aggregators := make([]*actors.AggregatorActor, cfg.Actors.Aggregators)

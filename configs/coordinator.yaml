@@ -1,12 +1,12 @@
 machine_id: "coordinator"
 port: 8080
 is_coordinator: true
+data_path: "data/karate_club.csv"
 
 algorithm:
   max_iterations: 20
-  timeout: "60s"
+  timeout: "180s"
   grace_period: "2s"
-  data_path: "data/karate_club.csv"
 
 actors:
   partitions: 0
