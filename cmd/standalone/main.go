@@ -18,6 +18,7 @@ import (
 const (
 	NumPartitions       = 4
 	NumAggregators      = 2
+	dataPath            = "data/karate_club.csv"
 	MachineID           = "machine-0"
 	MaxIterations       = 20
 	AlgorithmTimeout    = 60 * time.Second
@@ -27,11 +28,11 @@ const (
 func main() {
 	fmt.Println("Starting standalone mode")
 
-	edges, err := graph.ReadEdgesFromCSV("data/karate_club.csv")
+	edges, err := graph.ReadEdgesFromCSV(dataPath)
 	if err != nil {
 		log.Fatalf("Failed to read CSV: %v", err)
 	}
-	log.Printf("Loaded %d edges from karate_club.csv", len(edges))
+	log.Printf("Loaded %d edges from %s", len(edges), dataPath)
 
 	totalWeight := 0
 	for _, edge := range edges {
@@ -40,7 +41,7 @@ func main() {
 	totalWeight = totalWeight / 2
 	log.Printf("Total graph weight: %d", totalWeight)
 
-	provider := cluster.NewSimpleProvider(MachineID)
+	provider := cluster.NewSimpleProvider(MachineID, false)
 	system := actor.NewActorSystem(MachineID, provider)
 
 	coordinatorPID := actor.NewPID(MachineID, "coordinator")

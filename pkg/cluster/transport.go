@@ -15,7 +15,6 @@ import (
 	"github.com/distributed-louvain/pkg/messages"
 )
 
-// MessageEnvelope wraps messages with metadata for HTTP transport
 type MessageEnvelope struct {
 	Type    string          `json:"type"`
 	To      actor.PID       `json:"to"`

@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 
@@ -17,14 +18,19 @@ type SimpleProvider struct {
 	mu           sync.RWMutex
 }
 
-func NewSimpleProvider(machineID string) *SimpleProvider {
-	return &SimpleProvider{
+func NewSimpleProvider(machineID string, useTransportLayer bool) *SimpleProvider {
+	var p = &SimpleProvider{
 		machineID:   machineID,
 		machines:    make(map[string]string),
-		transport:   NewTransport(machineID, 8080), // Default port
 		coordinator: actor.PID{},
 		actorMap:    make(map[actor.ActorType][]actor.PID),
 	}
+
+	if useTransportLayer {
+		p.transport = NewTransport(machineID, 8080)
+	}
+
+	return p
 }
 
 func (p *SimpleProvider) MachineID() string {
@@ -34,13 +40,17 @@ func (p *SimpleProvider) MachineID() string {
 func (p *SimpleProvider) Start(ctx context.Context) error {
 	p.machines[p.machineID] = "localhost:8080"
 
-	p.transport.Start(ctx)
+	if p.transport != nil {
+		p.transport.Start(ctx)
+	}
 
 	return nil
 }
 
 func (p *SimpleProvider) SetActorSystem(system *actor.ActorSystem) {
-	p.transport.SetActorSystem(system)
+	if p.transport != nil {
+		p.transport.SetActorSystem(system)
+	}
 }
 
 func (p *SimpleProvider) SetCoordinator(coordinator actor.PID) {
@@ -89,10 +99,15 @@ func (p *SimpleProvider) RegisterMachine(machineID, address string) {
 }
 
 func (p *SimpleProvider) Send(to actor.PID, msg actor.Message) error {
-	return p.transport.Send(to, p.machines[to.MachineID], msg)
+	if p.transport != nil {
+		return p.transport.Send(to, p.machines[to.MachineID], msg)
+	}
+	return fmt.Errorf("transport layer not enabled")
 }
 
 func (p *SimpleProvider) Stop() error {
-	p.transport.Stop()
+	if p.transport != nil {
+		p.transport.Stop()
+	}
 	return nil
 }
