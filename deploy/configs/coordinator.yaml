@@ -4,8 +4,8 @@ is_coordinator: true
 data_path: "data/btc.csv"
 
 algorithm:
-  max_iterations: 20
-  timeout: "180s"
+  max_iterations: 100
+  timeout: "300s"
   grace_period: "2s"
 
 actors:
@@ -18,3 +18,5 @@ network:
       address: "node-1:8080"
     - id: "node-2"
       address: "node-2:8080"
+    - id: "node-3"
+      address: "node-3:8080"

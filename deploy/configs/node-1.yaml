@@ -4,15 +4,17 @@ is_coordinator: false
 coordinator: "coordinator:8080"
 
 algorithm:
-  max_iterations: 20
-  timeout: "180s"
+  max_iterations: 100
+  timeout: "300s"
   grace_period: "2s"
 
 actors:
-  partitions: 2
-  aggregators: 1
+  partitions: 4
+  aggregators: 2
 
 network:
   peers:
     - id: "node-2"
       address: "node-2:8080"
+    - id: "node-3"
+      address: "node-3:8080"
