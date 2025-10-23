@@ -1,0 +1,20 @@
+machine_id: "coordinator"
+port: 8080
+is_coordinator: true
+
+algorithm:
+  max_iterations: 20
+  timeout: "60s"
+  grace_period: "2s"
+  data_path: "data/karate_club.csv"
+
+actors:
+  partitions: 0
+  aggregators: 0
+
+network:
+  peers:
+    - id: "node-1"
+      address: "node-1:8080"
+    - id: "node-2"
+      address: "node-2:8080"
