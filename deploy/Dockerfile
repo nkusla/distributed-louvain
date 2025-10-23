@@ -12,8 +12,7 @@ FROM alpine:3.21
 
 WORKDIR /app
 COPY --from=builder /app/node .
-COPY --from=builder /app/configs ./configs
-COPY --from=builder /app/data ./data
+COPY --from=builder /app/deploy/configs ./configs
 
 EXPOSE 8080
 

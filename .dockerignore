@@ -1,0 +1,8 @@
+data/
+docs/
+test/
+.git/
+.gitignore
+Makefile
+LICENSE
+README.md

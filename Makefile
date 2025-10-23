@@ -1,13 +1,13 @@
-.PHONY: help build run test clean deploy start stop
+.PHONY: help build run test clean up start down
 
 help:
 	@echo "Distributed Louvain Algorithm - Make targets:"
 	@echo "  build        - Build the standalone binary"
 	@echo "  run          - Run in standalone mode"
 	@echo "  test         - Run tests"
-	@echo "  deploy       - Deploy the distributed-louvain system"
+	@echo "  up           - Deploy the distributed-louvain system"
 	@echo "  start        - Start the algorithm on the coordinator"
-	@echo "  stop         - Stop the distributed-louvain system"
+	@echo "  down         - Stop and remove the distributed-louvain system"
 	@echo "  clean        - Clean build artifacts"
 
 build:
@@ -18,17 +18,17 @@ run: build
 	@echo "Running standalone mode..."
 	./bin/standalone
 
-deploy:
+up:
 	@echo "Deploying distributed-louvain..."
-	docker compose up --build -d
+	cd deploy && docker compose up --build -d
 
 start:
 	@echo "Starting the algorithm on the coordinator..."
-	./start_algorithm.sh localhost:8080 coordinator
+	cd deploy && ./start_algorithm.sh localhost:8080 coordinator
 
-stop:
+down:
 	@echo "Stopping distributed-louvain..."
-	docker compose down
+	cd deploy && docker compose down
 
 test:
 	@echo "Running tests..."
