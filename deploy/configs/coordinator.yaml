@@ -1,7 +1,7 @@
 machine_id: "coordinator"
 port: 8080
 is_coordinator: true
-data_path: "data/karate_club.csv"
+data_path: "data/btc.csv"
 
 algorithm:
   max_iterations: 20
